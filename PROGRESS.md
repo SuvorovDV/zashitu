@@ -6,18 +6,18 @@
 
 ## Следующий шаг
 
-**→ Сначала исправить 3 критических бага** (см. раздел "Критические баги"), потом e2e тест:
+**→ Задеплоить `zashitu-web` рядом с ботом на VM `111.88.151.109`.**
 
+Бот уже крутится в проде (см. "Деплой" ниже), но без бэкенда падает на `POST /orders/`.
+После запуска `zashitu-web` — поправить `BACKEND_URL` в `~/zashitu/.env` на VM (если бэкенд на другом порту/хосте) и `docker compose restart bot`.
+
+Затем e2e тест: `/start` → 10 шагов → выбрать тариф → убедиться что .pptx отдаётся.
+
+Для локального прогона без оплаты:
 ```bash
-# Добавить в .env:
+# в .env:
 DEBUG_SKIP_PAYMENT=true
-DEBUG_RETURN_PROMPT=true   # чтобы сначала проверить промт без вызова API
-
-# Запустить:
-.venv/Scripts/python.exe bot/main.py
 ```
-
-Пройти флоу: `/start` → 10 шагов → выбрать тариф → убедиться что .pptx отдаётся.
 
 ---
 
@@ -136,9 +136,26 @@ DEBUG_RETURN_PROMPT=true   # чтобы сначала проверить про
 
 ---
 
+## Деплой
+
+- **Репозиторий:** https://github.com/SuvorovDV/zashitu (private, `main`)
+- **VM:** Yandex Cloud, `erkobrax@111.88.151.109` (соседствует с `tg_bot_ATP`)
+- **Путь на VM:** `~/zashitu` (код залит через scp; `git` на VM не настроен — обновления пока через повторный scp)
+- **Бот в Telegram:** `@ai_presentations_test_bot`
+- **Прокси Telegram:** `https://tg-bot-proxy.erkobraxx.workers.dev` (тот же Worker, что у ATP)
+- **Запуск:** `docker compose up -d --build`, контейнер `zashitu-bot-1`, `restart: unless-stopped`
+- **Бэкенд `zashitu-web`:** ❌ не задеплоен. Бот стартует, отвечает на `/start`, проходит FSM, но любой запрос, требующий API (`create_order`, `upload_file`, `confirm_payment`, генерация), упадёт с `BackendError`.
+
+Добавленные для деплоя файлы: `Dockerfile`, `docker-compose.yml`, `railway.json`, `cloudflare-worker.js`, `wrangler.toml`, `.env.example`, `.dockerignore`, `.gitignore`, `docs/deploy-yandex.md`. В `bot/main.py` и `config.py` добавлена поддержка `TELEGRAM_API_SERVER` (переиспользуем Worker от ATP).
+
+Инструкция и команды управления — `docs/deploy-yandex.md`.
+
+---
+
 ## Лог изменений
 
 | Дата | Что сделано |
 |---|---|
+| 2026-04-15 | Деплой в прод. Инфра: Dockerfile + docker-compose (single service), railway.json, Cloudflare Worker proxy (reuse ATP), docs/deploy-yandex.md. В `bot/main.py` добавлен `TELEGRAM_API_SERVER` через `AiohttpSession`. Репо запушен в `github.com/SuvorovDV/zashitu`. Контейнер `zashitu-bot-1` поднят на VM ATP (`erkobrax@111.88.151.109`), polling идёт через Worker `tg-bot-proxy.erkobraxx.workers.dev`. Бэкенд `zashitu-web` ещё не задеплоен — следующий шаг. |
 | 2026-04-13 | Добавлены: ВКР-обязательный source_grounded (auto-routing в FSM), генерация текста доклада (.txt) с источниками. Полный аудит: исправлены 4 бага (vkr в config, conference промт, лишний импорт). |
 | 2026-04-12 | Реализован полный MVP-скелет: бот, FSM, core, генераторы, интеграции, промты. Все зависимости установлены. Бот запускается, ждёт активации токена. |
