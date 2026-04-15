@@ -1,9 +1,29 @@
 .env
+.env.prod
+*.env.local
+
+# Python
 .venv/
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# IDE
 .idea/
 *.iml
 .claude/
+
+# Data / outputs (runtime artifacts)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/outputs/*
+!backend/outputs/.gitkeep
+backend/*.db
 storage/*.json
+*.pptx

@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: #0F0E0B;
+    color: #F5F1E8;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    @apply antialiased;
+  }
+  code, pre, kbd, samp {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  /* Табулярные цифры — где важно выравнивание колонок (цены, счётчики). */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* ── Градиентный текст (янтарь) ─────────────────────── */
+  .text-gradient {
+    background: linear-gradient(135deg, #FDE68A 0%, #FBBF24 45%, #D97706 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Glow-эффекты (янтарь) ─────────────────────────── */
+  .glow {
+    box-shadow:
+      0 0 0 1px rgba(245, 158, 11, 0.28),
+      0 4px 24px -4px rgba(245, 158, 11, 0.45),
+      0 0 60px -16px rgba(245, 158, 11, 0.35);
+  }
+
+  .glow-sm {
+    box-shadow:
+      0 0 0 1px rgba(245, 158, 11, 0.22),
+      0 4px 16px -4px rgba(245, 158, 11, 0.35);
+  }
+
+  /* ── Карточки — твёрдый тёплый тёмный фон ──────────── */
+  .card {
+    background-color: #1A1712;
+    border: 1px solid #2E2820;
+  }
+
+  .card-hover {
+    background-color: #221E17;
+    border-color: #4A402F;
+  }
+
+  /* Стеклянная карточка — только для оверлеев/hero */
+  .card-glass {
+    background: rgba(26, 23, 18, 0.7);
+    border: 1px solid rgba(245, 241, 232, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* ── Светлые карточки (для form inputs area) ───────── */
+  .card-light {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+
+  /* ── Горизонтальный разделитель ─────────────────────── */
+  .divider {
+    border-color: #2E2820;
+  }
+
+  /* ── Body text — тёплый off-white ──────────────────── */
+  .text-body {
+    color: #B8AE97;
+  }
+
+  .text-muted {
+    color: #7A7362;
+  }
+}

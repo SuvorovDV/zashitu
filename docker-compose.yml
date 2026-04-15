@@ -1,6 +1,7 @@
 services:
   bot:
-    build: .
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.bot
     restart: unless-stopped
-    command: python bot/main.py
     env_file: .env

@@ -6,14 +6,22 @@
 
 ## Следующий шаг
 
-**→ Задеплоить `zashitu-web` рядом с ботом на VM `111.88.151.109`.**
+**1. Задеплоить backend+worker+db+redis на ту же VM через `deploy/docker-compose.prod.yml`.**
 
-Бот уже крутится в проде (см. "Деплой" ниже), но без бэкенда падает на `POST /orders/`.
-После запуска `zashitu-web` — поправить `BACKEND_URL` в `~/zashitu/.env` на VM (если бэкенд на другом порту/хосте) и `docker compose restart bot`.
+На VM:
+```bash
+cd ~/zashitu
+cp .env.example .env.prod   # или скопировать текущий .env и дополнить ключами бэкенда
+nano .env.prod              # DATABASE_URL, SECRET_KEY, BOT_INTERNAL_SECRET (= BACKEND_INTERNAL_SECRET), ANTHROPIC_API_KEY, STRIPE_*
+cd deploy && docker compose -f docker-compose.prod.yml up -d --build postgres redis backend worker
+docker compose -f docker-compose.prod.yml logs -f backend
+```
 
-Затем e2e тест: `/start` → 10 шагов → выбрать тариф → убедиться что .pptx отдаётся.
+После этого в корневом `.env` (который читает бот-контейнер) поменять `BACKEND_URL=http://backend:8000` и пересоздать bot в одной сети с бэкендом (либо объединить всё в один compose).
 
-Для локального прогона без оплаты:
+**2. Завести `contracts/shared.py`** — вынести туда ID тарифов (`basic/standard/premium`), ключи палитр (`midnight_executive` и т.д.), значения `work_type` (`ВКР/Курсовая/...`). Импортировать в `bot/config.py` и `backend/config.py`. Это устранит риск рассинхронизации ID между двумя Python-конфигами.
+
+**3. E2E-тест:** `/start` → FSM → Stars → .pptx. Локально без оплаты:
 ```bash
 # в .env:
 DEBUG_SKIP_PAYMENT=true
@@ -136,6 +144,20 @@ DEBUG_SKIP_PAYMENT=true
 
 ---
 
+## Структура монорепы
+
+После объединения (2026-04-15) в репо лежит и бот, и бэкенд, и фронт:
+
+- `bot/` — Telegram-бот (этот проект, как был)
+- `backend/` — FastAPI + Celery из бывшего `zashitu-web/backend/`
+- `frontend/` — React SPA из бывшего `zashitu-web/frontend/`
+- `deploy/` — `Dockerfile.{bot,backend,frontend}` + `docker-compose.prod.yml` + `Caddyfile`
+- `docs/web/` — старые `CLAUDE.md`/`PROGRESS.md`/`DECISIONS.md`/`ROADMAP.md`/`REVIEW.md` веб-проекта (сохранены для контекста)
+
+История `zashitu-web` не сохранилась — у проекта не было `.git`, влили как единый снапшот.
+
+---
+
 ## Деплой
 
 - **Репозиторий:** https://github.com/SuvorovDV/zashitu (private, `main`)
@@ -156,6 +178,7 @@ DEBUG_SKIP_PAYMENT=true
 
 | Дата | Что сделано |
 |---|---|
+| 2026-04-15 | **Слияние в монорепу.** `zashitu-web/{backend,frontend,deploy}` перенесены в `zashitu/`. Старый `Dockerfile` переехал в `deploy/Dockerfile.bot`, корневой `docker-compose.yml` указывает на него. `requirements.txt` → `bot/requirements.txt`. Веб-доки перенесены в `docs/web/`. `.env.example` объединён (ключи бота + бэкенда). `.gitignore`/`.dockerignore` расширены. На прод-VM пока работает только бот, бэкенд — следующим шагом. |
 | 2026-04-15 | Деплой в прод. Инфра: Dockerfile + docker-compose (single service), railway.json, Cloudflare Worker proxy (reuse ATP), docs/deploy-yandex.md. В `bot/main.py` добавлен `TELEGRAM_API_SERVER` через `AiohttpSession`. Репо запушен в `github.com/SuvorovDV/zashitu`. Контейнер `zashitu-bot-1` поднят на VM ATP (`erkobrax@111.88.151.109`), polling идёт через Worker `tg-bot-proxy.erkobraxx.workers.dev`. Бэкенд `zashitu-web` ещё не задеплоен — следующий шаг. |
 | 2026-04-13 | Добавлены: ВКР-обязательный source_grounded (auto-routing в FSM), генерация текста доклада (.txt) с источниками. Полный аудит: исправлены 4 бага (vkr в config, conference промт, лишний импорт). |
 | 2026-04-12 | Реализован полный MVP-скелет: бот, FSM, core, генераторы, интеграции, промты. Все зависимости установлены. Бот запускается, ждёт активации токена. |

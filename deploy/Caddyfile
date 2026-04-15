@@ -1,0 +1,28 @@
+{
+    email admin@zashitu.space
+}
+
+tezis.111.88.153.18.nip.io {
+    encode gzip zstd
+
+    # API → backend. handle'ы взаимоисключающие; совпадение по пути → только в этот handle.
+    @api path /auth* /orders* /payments* /generation* /files* /health* /dev*
+    handle @api {
+        reverse_proxy backend:8000
+    }
+
+    # Иммутабельный кэш для Vite-бандлов.
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+
+    # SPA-фоллбэк: всё прочее — статика + try_files.
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+
+    request_body {
+        max_size 25MB
+    }
+}

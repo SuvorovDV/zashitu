@@ -1,136 +1,118 @@
-# CLAUDE.md — контекст проекта для Claude в терминале
+# CLAUDE.md — монорепа ZaShitu
 
-> Этот файл читай ПЕРВЫМ в каждой новой сессии. Он даёт полный контекст без необходимости объяснять заново.
+> Этот файл читай ПЕРВЫМ в каждой новой сессии.
 
 ---
 
 ## Что это за проект
 
-**ZaShitu** — Telegram-бот для генерации академических презентаций (.pptx).
+**ZaShitu** — платформа для генерации академических презентаций (.pptx) по загруженной работе студента. Два канала, один бэкенд:
 
-Студент пишет боту → бот собирает данные через FSM-диалог → загружает файл (если есть) → оплачивает через Stars → бэкенд `zashitu-web` генерирует .pptx через Claude API → бот отдаёт файл.
+- **Telegram-бот** (`@ai_presentations_test_bot`) — FSM-диалог 10 шагов → Stars → .pptx
+- **Веб-приложение** (React SPA) — регистрация → форма → Stripe → .pptx
 
-**Не делаем:** написание дипломных/курсовых работ, TG Mini App, нативные приложения.
+Оба канала ходят в общий FastAPI-бэкенд. Тонкий клиент — в `bot/`, толстый — в `frontend/`, сам бэкенд — в `backend/`.
 
-**Главное отличие от Gamma:** Gamma генерирует слайды «из головы» — мы генерируем **по загруженной работе студента** с ссылками на страницы. Нет галлюцинаций, каждый тезис верифицируем. Подробнее в `DECISIONS.md → Конкурентная позиция`.
-
----
-
-## Архитектура: бот = тонкий клиент `zashitu-web`
-
-Этот репозиторий содержит **только бот**. Вся бизнес-логика (Claude API, извлечение PDF/DOCX, сборка .pptx, база данных заказов) живёт в отдельном проекте **`zashitu-web`** (FastAPI).
-
-Бот ходит в бэкенд через `bot/api_client.py`, заголовок `X-Bot-Secret` (из `BACKEND_INTERNAL_SECRET`):
-
-- `POST /orders/` — создать заказ
-- `POST /files/upload/{order_id}` — загрузить PDF/DOCX
-- `POST /payments/internal/confirm` — подтвердить оплату (после Stars)
-- `GET /generation/status/{order_id}` — поллинг готовности
-- `GET /files/download/{order_id}` — забрать .pptx
-
-**Важно:** документация об `core/`, `integrations/`, `generators/`, `prompts/` в старых версиях архитектуры относится к `zashitu-web`, не к этому репозиторию.
+**Главное отличие от Gamma:** генерация **по работе студента** (`source_grounded`), каждый тезис с ссылкой на страницу. Никаких галлюцинаций.
 
 ---
 
-## Текущий статус
-
-Смотри `PROGRESS.md` — там актуальный статус каждого модуля и деплоя.
-
----
-
-## Стек (бот)
-
-- **Bot:** aiogram 3.27 (async, polling)
-- **HTTP client:** httpx (вызовы `zashitu-web`)
-- **FSM storage:** MemoryStorage (теряется при рестарте контейнера)
-- **Config:** python-dotenv
-- **Deploy:** Docker + docker-compose, Yandex Cloud VM, Cloudflare Worker как прокси к `api.telegram.org`
-
----
-
-## Структура проекта (бот)
+## Структура монорепы
 
 ```
 zashitu/
-├── CLAUDE.md              ← этот файл
-├── PROGRESS.md            ← статус реализации + баги + деплой
-├── DECISIONS.md           ← принятые решения
-├── architecture_v5.md     ← детальная архитектура
-├── roadmap_v3.md          ← roadmap
-├── bot/
-│   ├── main.py            ← polling, опц. TELEGRAM_API_SERVER
-│   ├── api_client.py      ← тонкий клиент zashitu-web
-│   ├── handlers/
-│   │   ├── start.py
-│   │   ├── form.py        ← FSM 10 шагов + загрузка файла
-│   │   └── payment.py     ← Stars + DEBUG_SKIP_PAYMENT
-│   ├── keyboards/inline.py
-│   └── states.py          ← 14 состояний FSM
-├── storage/user_sessions.py  ← in-memory {chat_id: FormData}
-├── config.py              ← env-переменные, TIERS, WORK_TYPES, PALETTES
-├── requirements.txt
-├── Dockerfile             ← python:3.12-slim, python bot/main.py
-├── docker-compose.yml     ← один сервис bot, restart: unless-stopped
-├── railway.json           ← альтернативный деплой на Railway
-├── cloudflare-worker.js   ← прокси к api.telegram.org (РФ-хостинг)
+├── CLAUDE.md              ← этот файл (корневой индекс)
+├── PROGRESS.md            ← статус деплоя и интеграции каналов
+├── DECISIONS.md           ← решения уровня монорепы
+├── bot/                   ← Telegram-бот (aiogram 3)
+│   ├── main.py, api_client.py, handlers/, keyboards/, states.py
+│   └── requirements.txt
+├── backend/               ← FastAPI + Celery (zashitu-web/backend)
+│   ├── main.py, models.py, config.py
+│   ├── auth/ orders/ payments/ generation/ files/
+│   ├── alembic/           ← миграции
+│   └── requirements.txt
+├── frontend/              ← React + Vite + Tailwind
+│   ├── src/ index.html package.json vite.config.js
+├── deploy/                ← Docker и прокси
+│   ├── Dockerfile.bot Dockerfile.backend Dockerfile.frontend
+│   ├── docker-compose.prod.yml   ← полный прод-стек (bot + backend + worker + frontend + db + redis)
+│   ├── Caddyfile nginx.conf
+├── docs/
+│   ├── deploy-yandex.md   ← текущий прод-деплой (только бот пока)
+│   └── web/               ← копии старых CLAUDE/PROGRESS/DECISIONS/ROADMAP/REVIEW от zashitu-web
+├── storage/user_sessions.py  ← in-memory сессии бота
+├── config.py              ← bot env: BOT_TOKEN, BACKEND_URL, TIERS (цены в Stars)
+├── cloudflare-worker.js   ← прокси к api.telegram.org (для РФ-хостинга)
 ├── wrangler.toml
-├── .env.example
-├── .dockerignore / .gitignore
-└── docs/
-    └── deploy-yandex.md
+├── docker-compose.yml     ← корневой (сейчас = только bot для VM)
+├── .env / .env.example    ← общий: ключи бота + бэкенда
+├── architecture_v5.md roadmap_v3.md   ← старые продуктовые доки бота
 ```
 
----
-
-## Ключевые решения (подробнее в DECISIONS.md)
-
-- **Бот ≠ монолит.** Вся генерация на стороне `zashitu-web`. Это репо — только UX в Telegram.
-- **Режим `source_grounded`** — главный режим MVP. Claude работает только с текстом загруженной работы. Каждый слайд → поле `source: "стр. X"`.
-- **Три тарифа:** базовый 99⭐, стандарт 199⭐, премиум 399⭐. Значения цен и лимитов — в `config.py → TIERS`, синхронизированы с `zashitu-web/backend/config.py`.
-- **FSM форма:** 10 шагов пользователя (тема, направление, тип работы, длительность, детализация, тезис, вуз, обязательные элементы, режим, палитра).
-- **Оплата:** `send_invoice` → `pre_checkout_query` → `successful_payment` → `api_client.confirm_payment()`.
-- **Хранение сессии:** dict `{chat_id: FormData}`, очищать после отдачи файла.
+`bot/` и `backend/` — два разных Python-процесса с отдельными `requirements.txt`. Общий только `.env` и git-история.
 
 ---
 
-## Деплой (прод)
+## Контракт бот ↔ бэкенд
 
-- **Репозиторий:** https://github.com/SuvorovDV/zashitu (private)
-- **VM:** Yandex Cloud, `erkobrax@111.88.151.109`, соседствует с `tg_bot_ATP`
-- **Путь на VM:** `~/zashitu` (залито через scp, git на VM не настроен)
-- **Бот:** `@ai_presentations_test_bot` (тестовый токен)
-- **Прокси Telegram:** `https://tg-bot-proxy.erkobraxx.workers.dev` (общий с ATP)
-- **Запуск:** `docker compose up -d --build`, `restart: unless-stopped`
-- **Бэкенд `zashitu-web`:** пока не задеплоен — бот стартует и проходит FSM, но падает на первом `POST /orders/`
+Бот — тонкий клиент. Все вызовы — через `bot/api_client.py` с заголовком `X-Bot-Secret` (значение из `BACKEND_INTERNAL_SECRET`):
 
-Подробности и управление — `docs/deploy-yandex.md`.
+- `POST /orders/` — создать заказ
+- `POST /files/upload/{order_id}` — PDF/DOCX
+- `POST /payments/internal/confirm` — после Stars
+- `GET /generation/status/{order_id}` — поллинг
+- `GET /files/download/{order_id}` — забрать .pptx
+
+**Важно:** в `bot/config.py → TIERS` цены в Stars, в `backend/config.py → TIERS` — в центах/рублях + модель Claude. Поля разные; единственное, что должно совпадать — набор **ID тарифов** (`basic`, `standard`, `premium`) и значения enum (`palette` ключи, `work_type` значения). Shared-модуль `contracts/` не создан; следить вручную, см. PROGRESS.md «Следующий шаг».
 
 ---
 
-## Переменные окружения (`.env`)
+## Стек
 
-| Переменная | Назначение |
+| Слой | Технологии |
 |---|---|
-| `BOT_TOKEN` | Токен от @BotFather |
-| `BACKEND_URL` | URL `zashitu-web`, по умолчанию `http://localhost:8000` |
-| `BACKEND_INTERNAL_SECRET` | Секрет заголовка `X-Bot-Secret` |
-| `TELEGRAM_API_SERVER` | (опц.) URL Cloudflare Worker для прокси к Telegram |
-| `DEBUG_SKIP_PAYMENT` | `true` — пропустить Stars, сразу подтвердить оплату |
+| Бот | aiogram 3.27, httpx, MemoryStorage, Docker |
+| Бэкенд | FastAPI, SQLAlchemy 2 (async), Celery, PostgreSQL, Redis |
+| AI | Anthropic Python SDK (Sonnet 4.6 / Opus 4.6) |
+| Генерация .pptx | `pptxgen.js` (Node subprocess из Python), LibreOffice для конвертаций |
+| PDF/DOCX | PyMuPDF, python-docx |
+| Фронт | React 18, Vite, React Router, TanStack Query, Zustand, Tailwind |
+| Оплата | Telegram Stars (бот), Stripe (веб) |
+| Прокси TG | Cloudflare Worker (`tg-bot-proxy.erkobraxx.workers.dev`) |
+| Деплой | Docker Compose, Yandex Cloud VM, Caddy (HTTPS) |
 
 ---
 
-## Что сейчас нужно реализовать
+## Текущий статус деплоя
 
-Смотри `PROGRESS.md` раздел "Следующий шаг".
+| Сервис | Где | Статус |
+|---|---|---|
+| Bot | YC VM `111.88.151.109`, контейнер `zashitu-bot-1` | ✅ работает, polling через CF Worker |
+| Backend | — | ❌ не задеплоен |
+| Worker (Celery) | — | ❌ не задеплоен |
+| PostgreSQL + Redis | — | ❌ не задеплоены |
+| Frontend | — | ❌ не задеплоен |
+
+Пока бэкенд не поднят, бот проходит FSM, но падает на первом `POST /orders/`. Следующий большой шаг — поднять `deploy/docker-compose.prod.yml` на той же VM.
 
 ---
 
-## Как работать в этом проекте
+## Как работать в этой монорепе
 
-1. Читай `CLAUDE.md` (этот файл)
-2. Читай `PROGRESS.md` — что уже есть, что нет
-3. Читай `DECISIONS.md` — почему так, а не иначе
-4. Реализуй конкретный модуль
-5. После реализации обнови `PROGRESS.md`
+1. Корневые `CLAUDE.md` / `PROGRESS.md` / `DECISIONS.md` — про монорепу и интеграцию.
+2. Веб-специфичные доки — `docs/web/CLAUDE.md`, `docs/web/PROGRESS.md`, `docs/web/DECISIONS.md`, `docs/web/ROADMAP.md`, `docs/web/REVIEW.md`.
+3. Бот-специфичные архитектурные доки — `architecture_v5.md`, `roadmap_v3.md` в корне.
+4. Меняешь контракт между ботом и бэкендом — делаешь один атомарный коммит, изменяющий обе стороны.
+5. После релиза обновляй корневой `PROGRESS.md` (общий статус) и локальный (`docs/web/PROGRESS.md` если задача в вебе).
 
-Не изобретай новые решения без крайней необходимости — сначала смотри `DECISIONS.md`.
+---
+
+## Репо и прод
+
+- **GitHub:** https://github.com/SuvorovDV/zashitu (private)
+- **VM:** `erkobrax@111.88.151.109` (соседствует с `tg_bot_ATP`)
+- **Путь на VM:** `~/zashitu` (залит через scp; git на VM не настроен)
+- **TG-прокси:** `https://tg-bot-proxy.erkobraxx.workers.dev` (reuse от ATP)
+
+Подробнее — `docs/deploy-yandex.md`.

@@ -1,0 +1,32 @@
+# Backend: FastAPI + Celery + Node (для pptxgenjs subprocess).
+FROM python:3.11-slim
+
+# Node нужен из-за generation/pptxgen.js, который запускается subprocess'ом.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates gnupg build-essential libpq-dev \
+        libreoffice-impress libreoffice-core poppler-utils \
+        fonts-dejavu fonts-liberation fonts-noto-core fonts-noto-extra fonts-noto-cjk \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+# Гарантируем, что /app на PYTHONPATH — без этого celery-форки не находят `models`.
+ENV PYTHONPATH=/app
+
+# Сначала зависимости — слой кэшируется.
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Node-зависимости pptxgenjs ставятся в той же папке, где лежит скрипт.
+COPY backend/generation/package*.json ./generation/
+RUN if [ -f ./generation/package.json ]; then cd generation && npm install --omit=dev; fi
+
+COPY backend/ ./
+
+# uploads/outputs — volume в compose.
+RUN mkdir -p /app/uploads /app/outputs
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
