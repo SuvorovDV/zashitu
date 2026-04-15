@@ -86,15 +86,28 @@ zashitu/
 
 ## Текущий статус деплоя
 
-| Сервис | Где | Статус |
-|---|---|---|
-| Bot | YC VM `111.88.151.109`, контейнер `zashitu-bot-1` | ✅ работает, polling через CF Worker |
-| Backend | — | ❌ не задеплоен |
-| Worker (Celery) | — | ❌ не задеплоен |
-| PostgreSQL + Redis | — | ❌ не задеплоены |
-| Frontend | — | ❌ не задеплоен |
+Полный стек крутится на Yandex Cloud VM `erkobrax@111.88.153.18` в одном проекте `deploy`:
 
-Пока бэкенд не поднят, бот проходит FSM, но падает на первом `POST /orders/`. Следующий большой шаг — поднять `deploy/docker-compose.prod.yml` на той же VM.
+| Контейнер | Образ | Состояние |
+|---|---|---|
+| `deploy-postgres-1` | `postgres:15-alpine` | healthy, volume `deploy_postgres_data` |
+| `deploy-redis-1` | `redis:7-alpine` | healthy |
+| `deploy-backend-1` | `deploy-backend` (FastAPI) | Up, uvicorn на 8000 |
+| `deploy-worker-1` | `deploy-worker` (Celery) | Up |
+| `deploy-frontend-1` | `deploy-frontend` (Caddy+Vite) | Up, порты 80/443 |
+| `deploy-bot-1` | `deploy-bot` (aiogram) | polling через CF Worker |
+
+**Публичные точки входа:**
+- Веб: `https://tezis.111.88.153.18.nip.io` (Caddy + nip.io-домен, авто-TLS)
+- Бот: `@ai_presentations_test_bot` (Telegram)
+- QR-коды в `docs/qr/qr-site.png`, `docs/qr/qr-bot.png`
+
+**Код на VM:** `~/zashitu/` (клон монорепы), запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`, env из `deploy/.env.prod` (chmod 600). Старый `~/zashitu-web/` заархивирован как `~/zashitu-web.old.YYYYMMDD/`.
+
+**Известные компромиссы (пока MVP):**
+- `ANTHROPIC_API_KEY` пуст → генерация возвращает placeholder (настоящей Claude-интеграции нет)
+- Stripe не сконфигурирован → чекаут 503 (работает Stars через бота, но `/payments/checkout` на вебе отключён)
+- `DEV_MODE=True` на проде — оставлено, т.к. нужна кнопка «симулировать оплату» в UI пока Stripe не подключён. Перед публичным запуском выключить.
 
 ---
 
@@ -111,8 +124,10 @@ zashitu/
 ## Репо и прод
 
 - **GitHub:** https://github.com/SuvorovDV/zashitu (private)
-- **VM:** `erkobrax@111.88.151.109` (соседствует с `tg_bot_ATP`)
-- **Путь на VM:** `~/zashitu` (залит через scp; git на VM не настроен)
-- **TG-прокси:** `https://tg-bot-proxy.erkobraxx.workers.dev` (reuse от ATP)
+- **VM:** `erkobrax@111.88.153.18` (отдельная от ATP-машины)
+- **Путь на VM:** `~/zashitu/` (залит через scp; git на VM не настроен)
+- **Прод-домен:** `https://tezis.111.88.153.18.nip.io`
+- **TG-прокси:** `https://tg-bot-proxy.erkobraxx.workers.dev`
+- **Compose project name:** `deploy` (контейнеры `deploy-*`, volumes `deploy_*`)
 
 Подробнее — `docs/deploy-yandex.md`.

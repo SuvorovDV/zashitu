@@ -6,22 +6,19 @@
 
 ## Следующий шаг
 
-**1. Задеплоить backend+worker+db+redis на ту же VM через `deploy/docker-compose.prod.yml`.**
+**1. E2E-тест всего прод-флоу.** Бот + бэкенд + фронт в проде, всё соединено через `deploy_default` network. Пройти оба канала:
+- Telegram: `/start` → 10 шагов FSM → выбор тарифа → Stars → получить .pptx (будет placeholder, т.к. `ANTHROPIC_API_KEY` пуст)
+- Веб: регистрация → форма → «Симулировать оплату» (`/dev/*`) → получить .pptx
 
-На VM:
-```bash
-cd ~/zashitu
-cp .env.example .env.prod   # или скопировать текущий .env и дополнить ключами бэкенда
-nano .env.prod              # DATABASE_URL, SECRET_KEY, BOT_INTERNAL_SECRET (= BACKEND_INTERNAL_SECRET), ANTHROPIC_API_KEY, STRIPE_*
-cd deploy && docker compose -f docker-compose.prod.yml up -d --build postgres redis backend worker
-docker compose -f docker-compose.prod.yml logs -f backend
-```
+**2. Подключить Claude API.** Добавить `ANTHROPIC_API_KEY` в `deploy/.env.prod` на VM, перезапустить `backend` и `worker`. После этого `GENERATION_MODE=mock` можно снять (или уточнить логику).
 
-После этого в корневом `.env` (который читает бот-контейнер) поменять `BACKEND_URL=http://backend:8000` и пересоздать bot в одной сети с бэкендом (либо объединить всё в один compose).
+**3. Подключить Stripe.** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, выключить `DEV_MODE=True` на проде. Проверить, что кнопка «симулировать оплату» перестаёт показываться.
 
-**2. Завести `contracts/shared.py`** — вынести туда ID тарифов (`basic/standard/premium`), ключи палитр (`midnight_executive` и т.д.), значения `work_type` (`ВКР/Курсовая/...`). Импортировать в `bot/config.py` и `backend/config.py`. Это устранит риск рассинхронизации ID между двумя Python-конфигами.
+**4. Завести `contracts/shared.py`** — вынести туда ID тарифов (`basic/standard/premium`), ключи палитр (`midnight_executive` и т.д.), значения `work_type` (`ВКР/Курсовая/...`). Импортировать в `bot/config.py` и `backend/config.py`. Это устранит риск рассинхронизации ID между двумя Python-конфигами.
 
-**3. E2E-тест:** `/start` → FSM → Stars → .pptx. Локально без оплаты:
+**5. Настроить git на VM.** Сейчас обновления идут через scp; поставить `gh` или deploy-key, чтобы было `git pull && docker compose ... up -d --build`.
+
+Локально без оплаты (бот):
 ```bash
 # в .env:
 DEBUG_SKIP_PAYMENT=true
@@ -160,17 +157,25 @@ DEBUG_SKIP_PAYMENT=true
 
 ## Деплой
 
-- **Репозиторий:** https://github.com/SuvorovDV/zashitu (private, `main`)
-- **VM:** Yandex Cloud, `erkobrax@111.88.151.109` (соседствует с `tg_bot_ATP`)
-- **Путь на VM:** `~/zashitu` (код залит через scp; `git` на VM не настроен — обновления пока через повторный scp)
-- **Бот в Telegram:** `@ai_presentations_test_bot`
-- **Прокси Telegram:** `https://tg-bot-proxy.erkobraxx.workers.dev` (тот же Worker, что у ATP)
-- **Запуск:** `docker compose up -d --build`, контейнер `zashitu-bot-1`, `restart: unless-stopped`
-- **Бэкенд `zashitu-web`:** ❌ не задеплоен. Бот стартует, отвечает на `/start`, проходит FSM, но любой запрос, требующий API (`create_order`, `upload_file`, `confirm_payment`, генерация), упадёт с `BackendError`.
+**Прод (Yandex Cloud VM `erkobrax@111.88.153.18`):**
+- Всё живёт в `~/zashitu/` (монорепа с GitHub)
+- Запуск: `docker compose -p deploy -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod up -d`
+- 6 контейнеров под проектом `deploy`: `postgres`, `redis`, `backend`, `worker`, `frontend`, `bot`
+- Volumes `deploy_postgres_data`, `deploy_uploads`, `deploy_outputs`, `deploy_caddy_*` — данные юзеров и файлы сохраняются между релизами
+- `deploy/.env.prod` — единственный источник секретов (chmod 600), объединяет bot- и backend-ключи
+- Сеть `deploy_default` — бот ходит в бэкенд по `http://backend:8000`, фронт проксирует `/api` в бэкенд
+- Публично:
+  - веб — `https://tezis.111.88.153.18.nip.io` (Caddy + nip.io + auto-TLS)
+  - бот — `@ai_presentations_test_bot`
+  - QR-коды сгенерированы: `docs/qr/qr-site.png`, `docs/qr/qr-bot.png`
 
-Добавленные для деплоя файлы: `Dockerfile`, `docker-compose.yml`, `railway.json`, `cloudflare-worker.js`, `wrangler.toml`, `.env.example`, `.dockerignore`, `.gitignore`, `docs/deploy-yandex.md`. В `bot/main.py` и `config.py` добавлена поддержка `TELEGRAM_API_SERVER` (переиспользуем Worker от ATP).
+**Репозиторий:** https://github.com/SuvorovDV/zashitu (private)
 
-Инструкция и команды управления — `docs/deploy-yandex.md`.
+**Интегральный контракт бот↔бэкенд:**
+- Бот шлёт заголовок `X-Bot-Secret`, бэкенд проверяет `settings.BOT_INTERNAL_SECRET` (код в `backend/auth/dependencies.py`, `backend/payments/router.py`). Проверено: `GET /orders/` с правильным секретом → 200, без — 401.
+- `ALLOWED_HOSTS=tezis.111.88.153.18.nip.io,backend,localhost` (раньше был только публичный домен — бот падал с `400 Invalid host header`).
+
+Инструкция — `docs/deploy-yandex.md`.
 
 ---
 
@@ -178,6 +183,7 @@ DEBUG_SKIP_PAYMENT=true
 
 | Дата | Что сделано |
 |---|---|
+| 2026-04-15 | **Прод переведён на монорепу.** Обнаружено, что реальный прод крутится на `111.88.153.18` (а не на `151.109`, куда я по ошибке развернул дубликат — снесён). На прод-VM стояла более старая версия бэкенда без поддержки `X-Bot-Secret` — синхронизировал 3 файла, потом полностью заменил `~/zashitu-web/` на `~/zashitu/` (монорепу). Сеть `deploy_default`, project name `deploy`, volumes преемственны (`SELECT count(*) FROM users → 3` сохранилось). В `deploy/.env.prod` добавлены `BOT_INTERNAL_SECRET`, `BOT_SERVICE_USER_EMAIL`, в `ALLOWED_HOSTS` — `backend,localhost`. Бот `deploy-bot-1` теперь в одной сети с бэкендом. Сгенерированы QR-коды для сайта и бота в `docs/qr/`. |
 | 2026-04-15 | **Слияние в монорепу.** `zashitu-web/{backend,frontend,deploy}` перенесены в `zashitu/`. Старый `Dockerfile` переехал в `deploy/Dockerfile.bot`, корневой `docker-compose.yml` указывает на него. `requirements.txt` → `bot/requirements.txt`. Веб-доки перенесены в `docs/web/`. `.env.example` объединён (ключи бота + бэкенда). `.gitignore`/`.dockerignore` расширены. На прод-VM пока работает только бот, бэкенд — следующим шагом. |
 | 2026-04-15 | Деплой в прод. Инфра: Dockerfile + docker-compose (single service), railway.json, Cloudflare Worker proxy (reuse ATP), docs/deploy-yandex.md. В `bot/main.py` добавлен `TELEGRAM_API_SERVER` через `AiohttpSession`. Репо запушен в `github.com/SuvorovDV/zashitu`. Контейнер `zashitu-bot-1` поднят на VM ATP (`erkobrax@111.88.151.109`), polling идёт через Worker `tg-bot-proxy.erkobraxx.workers.dev`. Бэкенд `zashitu-web` ещё не задеплоен — следующий шаг. |
 | 2026-04-13 | Добавлены: ВКР-обязательный source_grounded (auto-routing в FSM), генерация текста доклада (.txt) с источниками. Полный аудит: исправлены 4 бага (vkr в config, conference промт, лишний импорт). |
