@@ -113,23 +113,16 @@
 
 ---
 
-## Деплой: VM + Docker + Cloudflare Worker
+## Деплой: FirstVDS KVM + Docker
 
-**Решение:** бот живёт на Yandex Cloud VM как один контейнер `docker compose`, поллинг идёт через Cloudflare Worker-прокси к `api.telegram.org`. Переиспользуем инфру `tg_bot_ATP`: ту же VM, тот же Worker.
+**Решение:** весь стек (бот + бэкенд + воркер + фронт + БД + Redis) живёт на FirstVDS KVM (Алматы, Казахстан) в одном `docker compose`. Бот polling напрямую в `api.telegram.org` без прокси.
 
-**Почему VM, а не Railway/Fly:**
-- Уже есть VM под ATP с запасом ресурсов — 0₽ сверху
-- Российский IP у Яндекса → блокировка `api.telegram.org` → нужен прокси; этот прокси уже есть у ATP (Cloudflare Worker, бесплатно)
-- Railway/Fly работали бы без прокси, но это ещё один провайдер и ещё один биллинг
+**Почему FirstVDS, а не Yandex Cloud:**
+- Yandex Cloud (РФ) требовал Cloudflare Worker-прокси к `api.telegram.org` (заблокирован в РФ)
+- FirstVDS в Алматы — `api.telegram.org` доступен напрямую, прокси не нужен
+- 2 ядра / 4 ГБ / 60 ГБ NVMe — с запасом для текущего стека
 
-**Почему один контейнер, не компоузить с `zashitu-web`:**
-- Бот и бэкенд — отдельные репозитории, разные циклы релизов
-- `zashitu-web` деплоится независимо; бот ходит к нему по `BACKEND_URL`
-- Если в будущем `zashitu-web` переедет на другую VM/хост — бот не трогаем
-
-**Почему `TELEGRAM_API_SERVER` — env, а не хардкод:**
-- Локальная разработка не нуждается в прокси (api.telegram.org доступен)
-- На VM переменная задаётся в `.env`; если пусто — `bot/main.py` использует обычный `Bot(token=...)` без `AiohttpSession`
+**Историческое:** ранее использовался Yandex Cloud VM `111.88.153.18` с Cloudflare Worker `tg-bot-proxy.erkobraxx.workers.dev`. Файлы `cloudflare-worker.js` и `wrangler.toml` остались в репо как артефакты, но больше не используются.
 
 **FSM в MemoryStorage** (а не Redis): при рестарте контейнера пользователи на середине формы теряют состояние. Приемлемо для MVP; Redis — этап 2+.
 
@@ -157,18 +150,21 @@
 
 ## Переход прода на монорепу в одном compose (2026-04-15)
 
-**Решение:** прод на VM `111.88.153.18` запускается из единственного файла `~/zashitu/deploy/docker-compose.prod.yml` с флагом `-p deploy`. Раньше там было два компонента: отдельный клон `~/zashitu-web/` (бэкенд + фронт + db + redis) и отдельный compose для бота. Стек разъехался: бот лежал в отдельной папке и отдельной сети, бэкенд был из устаревшей версии без поддержки `X-Bot-Secret`.
-
-**Почему:**
-1. Код бота и бэкенда теперь в одном репо (монорепа) — компоуз тоже должен быть один.
-2. Бот и бэкенд в одной сети Docker по service-name (`backend`), без expose портов наружу.
-3. Один source of truth для env (`deploy/.env.prod`), одно место для рестартов.
-
-**Хитрости при миграции:**
-- `docker compose down` без `-v` — volumes не трогаются. Следующий `up` с тем же project name (`-p deploy`) переподключает `deploy_postgres_data`, `deploy_uploads`, `deploy_outputs`, `deploy_caddy_*` — данные пользователей остались.
-- `ALLOWED_HOSTS` по дефолту содержал только публичный домен. Бот ходит в бэкенд как `http://backend:8000`, а `TrustedHostMiddleware` проверяет `Host`-заголовок → 400. Добавить `backend,localhost` обязательно.
-- Старый код бэкенда не читал `X-Bot-Secret`. Синхронизировали `backend/auth/dependencies.py`, `backend/config.py`, `backend/payments/router.py` из монорепы, пересобрали образ.
+**Решение:** прод запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`. Все 6 сервисов в одной сети Docker, один `deploy/.env.prod`.
 
 **Что осталось хрупким:**
-- `DEV_MODE=True` на проде — потому что Stripe не подключён, а `/dev/simulate_payment` всё ещё нужен для ручных тестов. Перед публичным запуском — выключить и удостовериться, что боевая оплата идёт через Stripe.
-- Нет git на VM. Обновления идут через `scp tarball + tar -xzf`. В скрипте обновления нужно сохранять `deploy/.env.prod` (см. `docs/deploy-yandex.md` → «Обновление кода»).
+- `DEV_MODE=True` на проде — потому что Stripe не подключён, а `/dev/simulate_payment` всё ещё нужен для ручных тестов. Перед публичным запуском — выключить.
+- Нет git на VM. Обновления идут через `scp tarball + tar -xzf`. В скрипте обновления нужно сохранять `deploy/.env.prod`.
+
+---
+
+## Миграция на FirstVDS (2026-04-16)
+
+**Решение:** прод перенесён с Yandex Cloud (`111.88.153.18`) на FirstVDS KVM (`176.12.79.36`, Алматы). Cloudflare Worker-прокси убран — `api.telegram.org` доступен из Казахстана напрямую. Бот переименован из «Test» в «Tezis» через Telegram Bot API.
+
+**Что сделано:**
+- Docker 29.4.0 установлен, ispmanager nginx/apache остановлен и замаскирован
+- DNS в Docker починен (`/etc/docker/daemon.json` → `8.8.8.8`, `1.1.1.1`)
+- Caddy получил TLS от Let's Encrypt для `tezis.176.12.79.36.nip.io`
+- Пароль root сменён, SSH по ключу настроен
+- Старый сервер Yandex Cloud выключен

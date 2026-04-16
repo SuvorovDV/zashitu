@@ -1,4 +1,4 @@
-# CLAUDE.md — монорепа ZaShitu
+# CLAUDE.md — монорепа Tezis (ZaShitu)
 
 > Этот файл читай ПЕРВЫМ в каждой новой сессии.
 
@@ -34,17 +34,15 @@ zashitu/
 │   └── requirements.txt
 ├── frontend/              ← React + Vite + Tailwind
 │   ├── src/ index.html package.json vite.config.js
-├── deploy/                ← Docker и прокси
+├── deploy/                ← Docker
 │   ├── Dockerfile.bot Dockerfile.backend Dockerfile.frontend
 │   ├── docker-compose.prod.yml   ← полный прод-стек (bot + backend + worker + frontend + db + redis)
-│   ├── Caddyfile nginx.conf
+│   ├── Caddyfile
 ├── docs/
-│   ├── deploy-yandex.md   ← текущий прод-деплой (только бот пока)
+│   ├── deploy-yandex.md   ← старые заметки по деплою (Yandex Cloud, исторические)
 │   └── web/               ← копии старых CLAUDE/PROGRESS/DECISIONS/ROADMAP/REVIEW от zashitu-web
 ├── storage/user_sessions.py  ← in-memory сессии бота
 ├── config.py              ← bot env: BOT_TOKEN, BACKEND_URL, TIERS (цены в Stars)
-├── cloudflare-worker.js   ← прокси к api.telegram.org (для РФ-хостинга)
-├── wrangler.toml
 ├── docker-compose.yml     ← корневой (сейчас = только bot для VM)
 ├── .env / .env.example    ← общий: ключи бота + бэкенда
 ├── architecture_v5.md roadmap_v3.md   ← старые продуктовые доки бота
@@ -94,7 +92,7 @@ zashitu/
 | `deploy-backend-1` | `deploy-backend` (FastAPI) | Up, uvicorn на 8000 |
 | `deploy-worker-1` | `deploy-worker` (Celery) | Up |
 | `deploy-frontend-1` | `deploy-frontend` (Caddy+Vite) | Up, порты 80/443 |
-| `deploy-bot-1` | `deploy-bot` (aiogram) | polling через CF Worker |
+| `deploy-bot-1` | `deploy-bot` (aiogram) | polling напрямую в api.telegram.org |
 
 **Публичные точки входа:**
 - Веб: `https://tezis.176.12.79.36.nip.io` (Caddy + nip.io-домен, авто-TLS)
