@@ -79,14 +79,13 @@ zashitu/
 | PDF/DOCX | PyMuPDF, python-docx |
 | Фронт | React 18, Vite, React Router, TanStack Query, Zustand, Tailwind |
 | Оплата | Telegram Stars (бот), Stripe (веб) |
-| Прокси TG | Cloudflare Worker (`tg-bot-proxy.erkobraxx.workers.dev`) |
-| Деплой | Docker Compose, Yandex Cloud VM, Caddy (HTTPS) |
+| Деплой | Docker Compose, FirstVDS KVM (Алматы), Caddy (HTTPS) |
 
 ---
 
 ## Текущий статус деплоя
 
-Полный стек крутится на Yandex Cloud VM `erkobrax@111.88.153.18` в одном проекте `deploy`:
+Полный стек крутится на FirstVDS KVM `root@176.12.79.36` (Ubuntu 24.04, 2 ядра, 4 ГБ RAM, 60 ГБ NVMe) в одном проекте `deploy`:
 
 | Контейнер | Образ | Состояние |
 |---|---|---|
@@ -98,11 +97,10 @@ zashitu/
 | `deploy-bot-1` | `deploy-bot` (aiogram) | polling через CF Worker |
 
 **Публичные точки входа:**
-- Веб: `https://tezis.111.88.153.18.nip.io` (Caddy + nip.io-домен, авто-TLS)
+- Веб: `https://tezis.176.12.79.36.nip.io` (Caddy + nip.io-домен, авто-TLS)
 - Бот: `@ai_presentations_test_bot` (Telegram)
-- QR-коды в `docs/qr/qr-site.png`, `docs/qr/qr-bot.png`
 
-**Код на VM:** `~/zashitu/` (клон монорепы), запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`, env из `deploy/.env.prod` (chmod 600). Старый `~/zashitu-web/` заархивирован как `~/zashitu-web.old.YYYYMMDD/`.
+**Код на VM:** `~/zashitu/` (копия монорепы), запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`, env из `deploy/.env.prod` (chmod 600).
 
 **Известные компромиссы (пока MVP):**
 - `ANTHROPIC_API_KEY` пуст → генерация возвращает placeholder (настоящей Claude-интеграции нет)
@@ -124,10 +122,9 @@ zashitu/
 ## Репо и прод
 
 - **GitHub:** https://github.com/SuvorovDV/zashitu (private)
-- **VM:** `erkobrax@111.88.153.18` (отдельная от ATP-машины)
-- **Путь на VM:** `~/zashitu/` (залит через scp; git на VM не настроен)
-- **Прод-домен:** `https://tezis.111.88.153.18.nip.io`
-- **TG-прокси:** `https://tg-bot-proxy.erkobraxx.workers.dev`
+- **VM:** `root@176.12.79.36` (FirstVDS KVM, Алматы, Ubuntu 24.04, 2 ядра / 4 ГБ / 60 ГБ NVMe)
+- **Доменное имя сервера:** `erkobraxx.hlab.kz`
+- **Путь на VM:** `~/zashitu/`
+- **Прод-домен:** `https://tezis.176.12.79.36.nip.io`
+- **Старый сервер (Yandex Cloud):** `erkobrax@111.88.153.18` — выключен, можно удалять
 - **Compose project name:** `deploy` (контейнеры `deploy-*`, volumes `deploy_*`)
-
-Подробнее — `docs/deploy-yandex.md`.

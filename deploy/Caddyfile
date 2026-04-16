@@ -1,8 +1,8 @@
 {
-    email admin@zashitu.space
+    email erkobraxx@gmail.com
 }
 
-tezis.111.88.153.18.nip.io {
+tezis.176.12.79.36.nip.io {
     encode gzip zstd
 
     # API → backend. handle'ы взаимоисключающие; совпадение по пути → только в этот handle.
