@@ -709,6 +709,104 @@ def _fix_cyrillic_charset(pptx_path: Union[str, Path]):
     os.replace(tmp, pptx_path)
 
 
+_ALLOWED_SKELETON_LAYOUTS = {
+    "default", "callout", "two_col", "section", "quote", "stats", "table", "chart",
+}
+
+
+def _derive_skeleton_from_speech(order, n_slides: int, tier_config: dict) -> list:
+    """Просит Claude предложить skeleton из n слайдов по структуре утверждённой речи.
+
+    Возвращает [{"name": str, "layout": str}, ...] длиной ровно n, либо пустой список
+    при любой ошибке — тогда вызывающий откатится на фиксированный пул.
+    """
+    speech_text = order.speech_text or ""
+    if not speech_text:
+        return []
+
+    allow_images = (order.work_type or "").strip() not in ("ВКР",)
+    detail = order.detail_level or "standard"
+    work_type = order.work_type or "—"
+
+    system_prompt = f"""Ты проектировщик структуры академической презентации.
+Вход: утверждённый ТЕКСТ ВЫСТУПЛЕНИЯ в markdown.
+Задача: предложить skeleton презентации из РОВНО {n_slides} слайдов,
+чьи заголовки ТОЧНО соответствуют логическим шагам речи в том же порядке.
+
+Доступные layouts (крупные image-слайды не используй):
+- default — 3–6 bullets
+- callout — акцентная фраза + поддерживающие bullets
+- two_col — две колонки сравнения
+- section — разделитель блоков (заголовок большой главы)
+- quote — цитата
+- stats — 3–4 больших числа с подписями
+- table — табличные данные (если в речи есть markdown-таблица)
+- chart — график (если в речи есть числовой ряд по годам или категориям)
+
+Жёсткие правила:
+1. Первый слайд — введение, default или callout.
+2. Последний слайд — выводы, default/callout/quote (НЕ section, НЕ stats).
+3. Если в речи есть # заголовок первого уровня — он становится section-слайдом.
+4. Каждая markdown-таблица в речи → один слайд с layout=table.
+5. Каждый числовой ряд по времени/категориям → layout=chart.
+6. Выразительные цитаты в кавычках → layout=quote (не обязательно, но желательно 1 на колоду).
+7. Плотность: detail={detail} — при brief можно длиннее каждый слайд, при detailed — дробнее.
+8. Тип работы: {work_type} — не используй слова «ВКР/диплом», если это не ВКР.
+9. Названия слайдов — короткие (≤60 символов), без номеров, отражают содержимое конкретного фрагмента речи.
+10. НЕ выдумывай темы, которых нет в речи. Если речь короткая — сгруппируй иначе, но {n_slides} ровно.
+
+Верни ТОЛЬКО JSON-массив ровно из {n_slides} объектов вида
+{{"name": "...", "layout": "..."}} — без markdown-обёрток, без объяснений."""
+
+    user_prompt = (
+        f"ТЕКСТ ВЫСТУПЛЕНИЯ:\n```markdown\n{speech_text[:40000]}\n```\n\n"
+        f"Верни JSON-массив из {n_slides} слайдов."
+    )
+
+    client = _get_anthropic_client()
+    model = tier_config.get("model", "claude-sonnet-4-6")
+    resp = client.messages.create(**_messages_kwargs(
+        model=model,
+        max_tokens=4000,
+        temperature=0.3,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    ))
+    raw = resp.content[0].text.strip() if resp.content else ""
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        if len(parts) >= 3:
+            inner = parts[1]
+            if "\n" in inner:
+                inner = inner.split("\n", 1)[1]
+            raw = inner.strip()
+
+    parsed = json.loads(raw)
+    if not isinstance(parsed, list):
+        return []
+
+    result = []
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()[:80]
+        layout = str(item.get("layout") or "default").strip()
+        if not name:
+            continue
+        if layout not in _ALLOWED_SKELETON_LAYOUTS:
+            layout = "default"
+        if not allow_images and layout in ("image_side", "image_full"):
+            layout = "default"
+        result.append({"name": name, "layout": layout})
+
+    if len(result) != n_slides:
+        logger.warning(
+            f"Speech-derived skeleton returned {len(result)} slides, expected {n_slides}"
+        )
+        return []
+    return result
+
+
 def _build_skeleton(order, tier_config) -> list:
     # Если пользователь явно задал кол-во слайдов — оно переопределяет тариф
     # (но зажато в диапазон [6, 40], чтобы не рвать layout/skeleton).
@@ -717,6 +815,27 @@ def _build_skeleton(order, tier_config) -> list:
         n_slides = max(6, min(40, user_count))
     else:
         n_slides = tier_config.get("slides", 12)
+
+    # Если пользователь уже утвердил текст речи — скелет выводим ИЗ РЕЧИ,
+    # а не из дефолтного академического пула. Это даёт:
+    # (1) Titles слайдов, которые реально соответствуют содержимому спича
+    #     → контент-проход не «натягивает» кузбасский анализ на «Цели и задачи»;
+    # (2) Маркировка речи при скачивании становится точной (каждый абзац
+    #     находит свой заголовок слайда).
+    if (
+        getattr(order, "include_speech", False)
+        and getattr(order, "speech_approved", False)
+        and getattr(order, "speech_text", None)
+        and settings.ANTHROPIC_API_KEY
+    ):
+        try:
+            derived = _derive_skeleton_from_speech(order, n_slides, tier_config)
+            if derived and len(derived) == n_slides:
+                logger.info(f"Using speech-derived skeleton for {getattr(order, 'id', '?')}")
+                return derived
+        except Exception as e:
+            logger.warning(f"Speech-derived skeleton failed ({e}), using fixed pool")
+
     full_pool = [
         {"name": "Введение",                    "layout": "default"},
         {"name": "Актуальность темы",           "layout": "callout"},
