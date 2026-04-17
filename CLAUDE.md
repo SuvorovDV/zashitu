@@ -15,6 +15,13 @@
 
 **Главное отличие от Gamma:** генерация **по работе студента** (`source_grounded`), каждый тезис с ссылкой на страницу. Никаких галлюцинаций.
 
+**Pipeline слайдов (включён с 2026-04-17):**
+1. Если заказ с `include_speech` и речь утверждена → `_derive_skeleton_from_speech` просит Claude предложить titles+layouts **под реальные секции речи** (не фиксированный академический пул).
+2. `_generate_with_claude` заполняет контент: markdown-таблицы из речи → `layout=table`, числовые ряды → `layout=chart`, цитаты → `layout=quote`.
+3. `_generate_images_for_slides` рисует SVG-декор в углу через Claude (если `OPENAI_API_KEY` пуст) и растеризует через `@resvg/resvg-js`.
+4. `pptxgen.js` собирает `.pptx` с межстрочным 1.3 + `paraSpaceBefore` 6 на всех bullet-списках.
+5. `/files/download-speech/{id}` отдаёт речь с маркерами `=== Слайд N: title ===` (sonnet-4-6, кэш в `outputs/`).
+
 ---
 
 ## Структура монорепы
@@ -72,8 +79,8 @@ zashitu/
 |---|---|
 | Бот | aiogram 3.27, httpx, MemoryStorage, Docker |
 | Бэкенд | FastAPI, SQLAlchemy 2 (async), Celery, PostgreSQL, Redis |
-| AI | Anthropic Python SDK (Sonnet 4.6 / Opus 4.6) |
-| Генерация .pptx | `pptxgen.js` (Node subprocess из Python), LibreOffice для конвертаций |
+| AI | Anthropic Python SDK. Basic/standard — `claude-sonnet-4-6`, premium — `claude-opus-4-7`. Разметка речи на скачивании всегда sonnet. |
+| Генерация .pptx | `pptxgen.js` (Node subprocess из Python) — layout-ы default/callout/two_col/section/quote/stats/table/chart + SVG-декор в углу (растеризация через `@resvg/resvg-js`). LibreOffice + pdftoppm для превью-PNG. |
 | PDF/DOCX | PyMuPDF, python-docx |
 | Фронт | React 18, Vite, React Router, TanStack Query, Zustand, Tailwind |
 | Оплата | Telegram Stars (бот), Stripe (веб) |
