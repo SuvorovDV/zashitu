@@ -208,7 +208,22 @@ async def download_speech(
         except Exception as e:
             log.warning(f"download_speech: failed to parse generation_prompt: {e}")
 
-    content = mark_speech_with_slide_boundaries(order.speech_text, slide_titles)
+    # File-cache разметки: ключ — id заказа + хеш (speech + titles). При изменении
+    # любого из двух — кэш инвалидируется автоматически. Файлы живут в outputs/.
+    import hashlib
+    digest = hashlib.sha1(
+        (order.speech_text + "|" + "|".join(slide_titles)).encode("utf-8")
+    ).hexdigest()[:16]
+    cache_path = Path(settings.OUTPUT_DIR) / f"{order_id}_speech_{digest}.md"
+    if cache_path.exists():
+        content = cache_path.read_text(encoding="utf-8")
+    else:
+        content = mark_speech_with_slide_boundaries(order.speech_text, slide_titles)
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(content, encoding="utf-8")
+        except OSError as e:
+            log.warning(f"download_speech: failed to cache marked text: {e}")
 
     # Имя файла: UTF-8 filename по RFC 5987 + ASCII fallback (HTTP-заголовки latin-1).
     from urllib.parse import quote

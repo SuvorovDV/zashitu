@@ -1,12 +1,72 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import client from '../api/client.js'
 import { ordersApi, filesApi } from '../api/index.js'
 import { useWizardStore } from '../store/index.js'
 import { useToast } from '../components/ui/Toast.jsx'
 import { ConfirmDialog } from '../components/ui/Modal.jsx'
 import { ru } from '../shared/i18n/ru.js'
 import Spinner from '../components/ui/Spinner.jsx'
+
+
+function SpeechDownloadLink({ orderId }) {
+  const [busy, setBusy] = useState(false)
+  const toast = useToast()
+
+  async function onClick(e) {
+    e.preventDefault()
+    if (busy) return
+    setBusy(true)
+    try {
+      const resp = await client.get(filesApi.speechDownloadUrl(orderId), { responseType: 'blob' })
+      // Имя файла — из Content-Disposition (filename*=UTF-8''…), если есть.
+      let filename = 'speech.md'
+      const cd = resp.headers?.['content-disposition'] || ''
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i)
+      if (m) {
+        try { filename = decodeURIComponent(m[1]) } catch { filename = m[1] }
+      }
+      const url = URL.createObjectURL(resp.data)
+      const a = document.createElement('a')
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error('Не удалось скачать текст')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onClick}
+      title={busy ? 'Готовим текст с разметкой по слайдам…' : 'Скачать текст выступления (.md)'}
+      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#221E17] hover:bg-[#2E2820] text-[#B8AE97] border border-[#4A402F] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A7362] disabled:opacity-60 disabled:cursor-wait"
+    >
+      {busy ? (
+        <>
+          <svg aria-hidden="true" className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+            <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          Готовим…
+        </>
+      ) : (
+        <>
+          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {ru.dashboard.actions.downloadSpeech}
+        </>
+      )}
+    </button>
+  )
+}
 
 const STATUS_MAP = {
   pending:         { dot: 'bg-[#7A7362]',       label: ru.dashboard.statuses.pending,         badge: 'text-[#B8AE97] bg-[#221E17] border-[#4A402F]' },
@@ -146,19 +206,7 @@ export default function Dashboard() {
                       </svg>
                       {ru.dashboard.actions.download}
                     </a>
-                    {order.include_speech && (
-                      <a
-                        href={filesApi.speechDownloadUrl(order.id)}
-                        title="Скачать текст выступления (.md)"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#221E17] hover:bg-[#2E2820] text-[#B8AE97] border border-[#4A402F] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A7362]"
-                      >
-                        <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        {ru.dashboard.actions.downloadSpeech}
-                      </a>
-                    )}
+                    {order.include_speech && <SpeechDownloadLink orderId={order.id} />}
                   </>
                 )}
                 {order.status === 'generating' && (

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useGenerationStatus } from '../hooks/index.js'
 import { useWizardStore } from '../store/index.js'
+import client from '../api/client.js'
 import { filesApi, generationApi } from '../api/index.js'
 import { useToast } from '../components/ui/Toast.jsx'
 import { Modal } from '../components/ui/Modal.jsx'
@@ -375,17 +376,58 @@ function DoneView({ orderId, data, onNew }) {
 }
 
 function SpeechDownloadButton({ orderId }) {
+  const [busy, setBusy] = useState(false)
+  const toast = useToast()
+
+  async function onClick() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const resp = await client.get(filesApi.speechDownloadUrl(orderId), { responseType: 'blob' })
+      let filename = 'speech.md'
+      const cd = resp.headers?.['content-disposition'] || ''
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i)
+      if (m) {
+        try { filename = decodeURIComponent(m[1]) } catch { filename = m[1] }
+      }
+      const url = URL.createObjectURL(resp.data)
+      const a = document.createElement('a')
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      toast.error('Не удалось скачать текст')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <a
-      href={filesApi.speechDownloadUrl(orderId)}
-      className="flex items-center gap-2.5 bg-[#1A1712] hover:bg-[#221E17] text-[#B8AE97] hover:text-white font-medium px-5 py-3 rounded-xl border border-[#2E2820] hover:border-[#4A402F] transition-colors"
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onClick}
+      title={busy ? 'Готовим текст с разметкой по слайдам…' : 'Скачать текст выступления'}
+      className="flex items-center gap-2.5 bg-[#1A1712] hover:bg-[#221E17] text-[#B8AE97] hover:text-white font-medium px-5 py-3 rounded-xl border border-[#2E2820] hover:border-[#4A402F] transition-colors disabled:opacity-60 disabled:cursor-wait"
     >
-      <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-      </svg>
-      Скачать текст .md
-    </a>
+      {busy ? (
+        <>
+          <svg aria-hidden="true" className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+            <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          Готовим текст…
+        </>
+      ) : (
+        <>
+          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+          </svg>
+          Скачать текст .md
+        </>
+      )}
+    </button>
   )
 }
 
