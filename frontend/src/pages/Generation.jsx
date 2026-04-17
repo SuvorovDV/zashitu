@@ -360,7 +360,7 @@ function DoneView({ orderId, data, onNew }) {
           </svg>
           Скачать .pptx
         </a>
-        {data.speech_text && <SpeechDownloadButton text={data.speech_text} />}
+        {data.speech_text && <SpeechDownloadButton orderId={orderId} />}
       </div>
       <button
         onClick={onNew}
@@ -374,19 +374,10 @@ function DoneView({ orderId, data, onNew }) {
   )
 }
 
-function SpeechDownloadButton({ text }) {
-  function download() {
-    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'Tezis_speech.md'
-    document.body.appendChild(a); a.click(); a.remove()
-    URL.revokeObjectURL(url)
-  }
+function SpeechDownloadButton({ orderId }) {
   return (
-    <button
-      onClick={download}
+    <a
+      href={filesApi.speechDownloadUrl(orderId)}
       className="flex items-center gap-2.5 bg-[#1A1712] hover:bg-[#221E17] text-[#B8AE97] hover:text-white font-medium px-5 py-3 rounded-xl border border-[#2E2820] hover:border-[#4A402F] transition-colors"
     >
       <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,7 +385,7 @@ function SpeechDownloadButton({ text }) {
           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
       </svg>
       Скачать текст .md
-    </button>
+    </a>
   )
 }
 
