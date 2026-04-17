@@ -273,25 +273,58 @@ function statsSlide({ prs, pal }, s) {
     }));
   }
   const stats = (s.stats || []).slice(0, 4);
-  const boxW = 2.15, boxH = 2.3, gap = 0.15;
-  const totalW = stats.length * boxW + (stats.length - 1) * gap;
-  const startX = (10 - totalW) / 2;
-  const startY = s.intro ? 1.9 : 1.6;
+  if (!stats.length) return;
+
+  // 1–3 → одна строка; 4 → 2×2. Квадрат широкий/плоский вместо узкого столбика —
+  // длинные «14–16%» и подписи на 2 строки помещаются без автошринка.
+  const n = stats.length;
+  const useGrid22 = n === 4;
+  const cols = useGrid22 ? 2 : n;
+  const rows = useGrid22 ? 2 : 1;
+
+  const areaY = s.intro ? 1.75 : 1.35;
+  const areaH = 5.25 - areaY;
+  const colGap = 0.25, rowGap = 0.25;
+  const availW = 9.2;
+  const boxW = (availW - (cols - 1) * colGap) / cols;
+  const boxH = useGrid22 ? 1.7 : 2.3;
+  const totalH = rows * boxH + (rows - 1) * rowGap;
+  const startX = (10 - availW) / 2;
+  const startY = areaY + (areaH - totalH) / 2;
+
   stats.forEach((st, i) => {
-    const x = startX + i * (boxW + gap);
-    slide.addShape(prs.shapes.ROUNDED_RECTANGLE, {
-      x, y: startY, w: boxW, h: boxH,
-      fill: { color: pal.white }, line: { color: pal.accent, width: 1 }, rectRadius: 0.08,
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (boxW + colGap);
+    const y = startY + row * (boxH + rowGap);
+
+    // Карточка: белый фон, hairline primary-бордер. Без скруглений — editorial.
+    slide.addShape(prs.shapes.RECTANGLE, {
+      x, y, w: boxW, h: boxH,
+      fill: { color: pal.white }, line: { color: pal.primary, width: 1 },
     });
+    // Левая акцентная полоса primary — визуальный якорь, отделяет от белой массы фона.
+    slide.addShape(prs.shapes.RECTANGLE, {
+      x, y, w: 0.08, h: boxH,
+      fill: { color: pal.primary }, line: { color: pal.primary, width: 0 },
+    });
+
+    // Текст слева, с отступом от акцентной полосы.
+    const padL = 0.28;
+    const innerX = x + padL;
+    const innerW = boxW - padL - 0.2;
+    const valueFontSize = useGrid22 ? 36 : 42;
+    const valueH = boxH * 0.52;
+
     slide.addText(st.value || "", t({
-      x, y: startY + 0.2, w: boxW, h: 1.3,
-      fontFace: FONT_TITLE, fontSize: 48, bold: true,
-      color: pal.primary, align: "center", valign: "middle", margin: 0,
+      x: innerX, y: y + 0.15, w: innerW, h: valueH,
+      fontFace: FONT_TITLE, fontSize: valueFontSize, bold: true,
+      color: pal.primary, align: "left", valign: "middle", margin: 0,
     }));
     slide.addText(st.label || "", t({
-      x: x + 0.1, y: startY + 1.5, w: boxW - 0.2, h: 0.7,
-      fontFace: FONT_BODY, fontSize: 12,
-      color: pal.text, align: "center", valign: "top", margin: 0, wrap: true,
+      x: innerX, y: y + 0.15 + valueH + 0.02, w: innerW, h: boxH - 0.2 - valueH,
+      fontFace: FONT_BODY, fontSize: 13,
+      color: pal.text, align: "left", valign: "top", margin: 0, wrap: true,
     }));
   });
 }
@@ -481,14 +514,40 @@ function chartSlide({ prs, pal }, s) {
   const chartY = s.intro ? 1.7 : 1.25;
   const chartH = 5.3 - chartY;
 
+  // 1 серия → один primary-цвет (не «радуга» из трёх оттенков на одну линию).
+  const isSingle = seriesIn.length === 1;
+  const extraColors = [pal.primary, pal.accent, "8b5cf6", "f59e0b", "10b981"];
+  const chartColors = isSingle ? [pal.primary] : extraColors.slice(0, seriesIn.length);
+
   slide.addChart(chartType, chartData, {
     x: 0.5, y: chartY, w: 9.0, h: chartH,
-    chartColors: [pal.primary, pal.accent, pal.text, "8b5cf6", "f59e0b"],
+    chartColors,
     showLegend: seriesIn.length > 1 || typeKey === "pie",
     legendPos: "b",
-    catAxisLabelFontSize: 10,
-    valAxisLabelFontSize: 10,
+    legendFontSize: 11,
+    legendFontFace: null,
+
+    // fontFace: null → pptxgenjs не вшивает <a:latin typeface="Arial"/>,
+    // PowerPoint подставляет системный дефолт (Calibri) — совпадает с остальным текстом.
+    catAxisLabelFontFace: null,
+    valAxisLabelFontFace: null,
+    dataLabelFontFace: null,
+    catAxisLabelFontSize: 11,
+    valAxisLabelFontSize: 11,
     dataLabelFontSize: 10,
+
+    // Значения на точках/столбцах — читаются без поиска по оси Y.
+    showValue: typeKey !== "pie",
+
+    // Толще линия и крупнее маркеры — меньше «диснеевского» стока pptxgenjs.
+    lineSize: 3,
+    lineDataSymbolSize: 8,
+    lineDataSymbolLineSize: 0,
+
+    // Сетка: только тонкая горизонтальная, вертикальную убираем.
+    valGridLine: { color: "E5E7EB", style: "solid", size: 0.5 },
+    catGridLine: { style: "none" },
+
     showTitle: false,
     lang: LANG,
   });
