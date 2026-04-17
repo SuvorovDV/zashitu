@@ -43,6 +43,14 @@ def _get_anthropic_client():
     return _anthropic_client
 
 
+def _messages_kwargs(**kw):
+    """client.messages.create kwargs, отфильтрованные под конкретную модель.
+    Opus 4.7 не поддерживает temperature — для него параметр выкидываем."""
+    if "opus-4-7" in (kw.get("model") or ""):
+        kw.pop("temperature", None)
+    return kw
+
+
 class SlideColumn(BaseModel):
     heading: str = ""
     bullets: List[str] = Field(default_factory=list)
@@ -509,13 +517,13 @@ def _images_via_claude_svg(
         )
         user_prompt = f"Нарисуй SVG-иллюстрацию на тему: {prompt}"
         try:
-            resp = client.messages.create(
+            resp = client.messages.create(**_messages_kwargs(
                 model=model,
                 max_tokens=8000,
                 temperature=0.5,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
-            )
+            ))
             svg_raw = resp.content[0].text.strip() if resp.content else ""
             svg = _extract_svg(svg_raw)
             if not svg:
@@ -725,13 +733,13 @@ def _generate_with_claude(order, skeleton: list, tier_config: dict):
     model = tier_config.get("model", "claude-sonnet-4-6")
     system_prompt, user_prompt = _build_slides_prompts(order, skeleton)
 
-    response = client.messages.create(
+    response = client.messages.create(**_messages_kwargs(
         model=model,
         max_tokens=16000,
         temperature=0.6,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
-    )
+    ))
 
     stop_reason = getattr(response, "stop_reason", None)
     raw = response.content[0].text.strip() if response.content else ""
@@ -1118,13 +1126,14 @@ def _build_speech_prompts(order, duration: int):
 
 def _speech_with_claude(order, tier_config, duration: int, system_prompt: str, user_prompt: str):
     client = _get_anthropic_client()
-    response = client.messages.create(
-        model=tier_config.get("model", "claude-sonnet-4-6"),
+    _model = tier_config.get("model", "claude-sonnet-4-6")
+    response = client.messages.create(**_messages_kwargs(
+        model=_model,
         max_tokens=16000,
         temperature=0.7,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
-    )
+    ))
     if response.stop_reason == "max_tokens":
         logger.warning(
             f"Speech for order {order.id} hit max_tokens cap (duration={duration}m) — output truncated"

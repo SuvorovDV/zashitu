@@ -57,5 +57,6 @@ export const filesApi = {
     })
   },
   downloadUrl: (orderId) => `/files/download/${orderId}`,
+  speechDownloadUrl: (orderId) => `/files/download-speech/${orderId}`,
   previewUrl: (orderId, index) => `/files/preview/${orderId}/${index}`,
 }

@@ -168,3 +168,32 @@ async def download_file(
         )
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
+
+
+@router.get("/download-speech/{order_id}")
+async def download_speech(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Текст выступления в Markdown. Только если include_speech=True и speech_text существует."""
+    from fastapi.responses import Response
+
+    order = await orders_service.get_order(db, order_id, current_user.id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if not order.include_speech or not order.speech_text:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Speech text not available for this order",
+        )
+
+    safe_topic = "".join(c for c in (order.topic or "speech")[:30] if c.isalnum() or c in " _-").strip()
+    if not safe_topic:
+        safe_topic = "speech"
+    download_name = f"Tezis_{safe_topic}_speech.md"
+    return Response(
+        content=order.speech_text.encode("utf-8"),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+    )

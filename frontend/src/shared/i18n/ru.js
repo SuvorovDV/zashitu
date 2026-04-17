@@ -74,6 +74,7 @@ export const ru = {
     },
     actions: {
       download: 'Скачать',
+      downloadSpeech: 'Текст',
       watch: 'Следить',
       pay: 'Оплатить',
       open: 'Открыть',
