@@ -858,14 +858,14 @@ def _generate_speech(order, tier_config):
         "system": system_prompt,
         "user": user_prompt,
         "model": model,
-        "max_tokens": 3500,
+        "max_tokens": 16000,
         "temperature": 0.7,
         "pseudocode": (
             f"import anthropic\n"
             f"client = anthropic.Anthropic()\n"
             f"resp = client.messages.create(\n"
             f"    model=\"{model}\",\n"
-            f"    max_tokens=3500,\n"
+            f"    max_tokens=16000,\n"
             f"    temperature=0.7,\n"
             f"    system=<system>,\n"
             f"    messages=[{{\"role\": \"user\", \"content\": <user>}}],\n"
@@ -954,11 +954,15 @@ def _speech_with_claude(order, tier_config, duration: int, system_prompt: str, u
     client = _get_anthropic_client()
     response = client.messages.create(
         model=tier_config.get("model", "claude-sonnet-4-6"),
-        max_tokens=3500,
+        max_tokens=16000,
         temperature=0.7,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
+    if response.stop_reason == "max_tokens":
+        logger.warning(
+            f"Speech for order {order.id} hit max_tokens cap (duration={duration}m) — output truncated"
+        )
     raw = response.content[0].text.strip()
     return raw, raw
 
