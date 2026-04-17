@@ -270,13 +270,13 @@ def _pptxgenjs_generator(order, file_path, tier_config):
         "user": usr_p,
         "model": model,
         "temperature": 0.6,
-        "max_tokens": 4096,
+        "max_tokens": 16000,
         "pseudocode": (
             f"import anthropic, json\n"
             f"client = anthropic.Anthropic()\n"
             f"resp = client.messages.create(\n"
             f"    model=\"{model}\",\n"
-            f"    max_tokens=4096,\n"
+            f"    max_tokens=16000,\n"
             f"    temperature=0.6,\n"
             f"    system=<system>,\n"
             f"    messages=[{{\"role\": \"user\", \"content\": <user>}}],\n"
@@ -593,13 +593,14 @@ def _generate_with_claude(order, skeleton: list, tier_config: dict):
 
     response = client.messages.create(
         model=model,
-        max_tokens=4096,
+        max_tokens=16000,
         temperature=0.6,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
 
-    raw = response.content[0].text.strip()
+    stop_reason = getattr(response, "stop_reason", None)
+    raw = response.content[0].text.strip() if response.content else ""
     if raw.startswith("```"):
         parts = raw.split("```")
         if len(parts) >= 3:
@@ -608,14 +609,31 @@ def _generate_with_claude(order, skeleton: list, tier_config: dict):
                 inner = inner.split("\n", 1)[1]
             raw = inner.strip()
 
+    def _fallback(reason: str):
+        logger.warning(
+            f"Slides fallback for order {order.id}: {reason} "
+            f"(stop_reason={stop_reason}, raw_len={len(raw)}, raw_head={raw[:200]!r})"
+        )
+        contents, _ = _generate_placeholder(order, skeleton)
+        return contents, {
+            "system": system_prompt,
+            "user": user_prompt,
+            "model": model,
+            "temperature": 0.6,
+            "max_tokens": 16000,
+            "raw_response": raw,
+            "stop_reason": stop_reason,
+            "fallback_reason": reason,
+            "placeholder_used": True,
+        }
+
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as e:
-        logger.warning(f"Claude returned invalid JSON: {e}; falling back to placeholder")
-        return _generate_placeholder(order, skeleton)
+        return _fallback(f"invalid JSON: {e}")
 
     if not isinstance(parsed, list):
-        return _generate_placeholder(order, skeleton)
+        return _fallback(f"expected list, got {type(parsed).__name__}")
 
     contents = []
     for i, item in enumerate(parsed):
@@ -635,13 +653,14 @@ def _generate_with_claude(order, skeleton: list, tier_config: dict):
         "user": user_prompt,
         "model": model,
         "temperature": 0.6,
-        "max_tokens": 4096,
+        "max_tokens": 16000,
+        "stop_reason": stop_reason,
         "pseudocode": (
             f"import anthropic\n"
             f"client = anthropic.Anthropic()\n"
             f"resp = client.messages.create(\n"
             f"    model=\"{model}\",\n"
-            f"    max_tokens=4096,\n"
+            f"    max_tokens=16000,\n"
             f"    temperature=0.6,\n"
             f"    system=<system>,\n"
             f"    messages=[{{\"role\": \"user\", \"content\": <user>}}],\n"
