@@ -101,7 +101,6 @@ zashitu/
 **Код на VM:** `~/zashitu/` (копия монорепы), запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`, env из `deploy/.env.prod` (chmod 600).
 
 **Известные компромиссы (пока MVP):**
-- `ANTHROPIC_API_KEY` пуст → генерация возвращает placeholder (настоящей Claude-интеграции нет)
 - Stripe не сконфигурирован → чекаут 503 (работает Stars через бота, но `/payments/checkout` на вебе отключён)
 - `DEV_MODE=True` на проде — оставлено, т.к. нужна кнопка «симулировать оплату» в UI пока Stripe не подключён. Перед публичным запуском выключить.
 

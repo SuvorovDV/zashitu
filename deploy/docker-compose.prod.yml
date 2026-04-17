@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:15-alpine
     restart: unless-stopped
+    env_file: .env.prod
     environment:
       POSTGRES_USER: zashitu
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: zashitu_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -69,7 +69,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.frontend
       args:
-        VITE_DEV_TOKEN: ${DEV_TOKEN}
+        VITE_DEV_TOKEN: ${DEV_TOKEN:-}
     restart: unless-stopped
     ports:
       - "80:80"

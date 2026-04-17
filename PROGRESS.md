@@ -6,17 +6,15 @@
 
 ## Следующий шаг
 
-**1. E2E-тест всего прод-флоу.** Бот + бэкенд + фронт в проде, всё соединено через `deploy_default` network. Пройти оба канала:
-- Telegram: `/start` → 10 шагов FSM → выбор тарифа → Stars → получить .pptx (будет placeholder, т.к. `ANTHROPIC_API_KEY` пуст)
-- Веб: регистрация → форма → «Симулировать оплату» (`/dev/*`) → получить .pptx
+**1. E2E-тест всего прод-флоу с реальным Claude.** Ключ `ANTHROPIC_API_KEY` подключён 2026-04-17. Прогнать оба канала и убедиться, что `source_grounded` возвращает тезисы со ссылками на страницы (не заглушку):
+- Telegram: `/start` → 10 шагов FSM → выбор тарифа → Stars → получить реальный .pptx
+- Веб: регистрация → форма → «Симулировать оплату» (`/dev/*`) → получить реальный .pptx
 
-**2. Подключить Claude API.** Добавить `ANTHROPIC_API_KEY` в `deploy/.env.prod` на VM, перезапустить `backend` и `worker`. После этого `GENERATION_MODE=mock` можно снять (или уточнить логику).
+**2. Подключить Stripe.** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, выключить `DEV_MODE=True` на проде. Проверить, что кнопка «симулировать оплату» перестаёт показываться.
 
-**3. Подключить Stripe.** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, выключить `DEV_MODE=True` на проде. Проверить, что кнопка «симулировать оплату» перестаёт показываться.
+**3. Завести `contracts/shared.py`** — вынести туда ID тарифов (`basic/standard/premium`), ключи палитр (`midnight_executive` и т.д.), значения `work_type` (`ВКР/Курсовая/...`). Импортировать в `bot/config.py` и `backend/config.py`. Это устранит риск рассинхронизации ID между двумя Python-конфигами.
 
-**4. Завести `contracts/shared.py`** — вынести туда ID тарифов (`basic/standard/premium`), ключи палитр (`midnight_executive` и т.д.), значения `work_type` (`ВКР/Курсовая/...`). Импортировать в `bot/config.py` и `backend/config.py`. Это устранит риск рассинхронизации ID между двумя Python-конфигами.
-
-**5. Настроить git на VM.** Сейчас обновления идут через scp; поставить `gh` или deploy-key, чтобы было `git pull && docker compose ... up -d --build`.
+**4. Настроить git на VM.** Сейчас обновления идут через scp; поставить `gh` или deploy-key, чтобы было `git pull && docker compose ... up -d --build`.
 
 Локально без оплаты (бот):
 ```bash
@@ -183,6 +181,7 @@ DEBUG_SKIP_PAYMENT=true
 
 | Дата | Что сделано |
 |---|---|
+| 2026-04-17 | **Подключён `ANTHROPIC_API_KEY` на проде.** Ключ записан в `~/zashitu/deploy/.env.prod` (бэкап `.env.prod.bak-20260417-073205`), контейнеры `backend` и `worker` пересозданы через `docker compose up -d --no-deps`. Проверено: переменная видна внутри обоих контейнеров, длина 108, uvicorn и celery стартанули без ошибок. Генерация перестала возвращать placeholder. Попутно исправлен баг в `deploy/docker-compose.prod.yml`: `${POSTGRES_PASSWORD}` и `${DEV_TOKEN}` интерполировались из shell env (а не из `.env.prod`) и при `docker compose up -d` без `--no-deps` postgres мог пересоздаться с пустым паролем — postgres переведён на `env_file: .env.prod`, для `DEV_TOKEN` добавлен default `${DEV_TOKEN:-}`, на VM симлинк `.env → .env.prod` (belt-and-suspenders). |
 | 2026-04-16 | **Миграция с Yandex Cloud на FirstVDS.** Новый сервер: `root@176.12.79.36` (FirstVDS KVM, Алматы, Ubuntu 24.04, 2 ядра / 4 ГБ / 60 ГБ NVMe). Установлен Docker 29.4.0, остановлен ispmanager nginx/apache (замаскирован). Все 6 контейнеров подняты. Caddy получил TLS для `tezis.176.12.79.36.nip.io`. Починен DNS в Docker (`daemon.json` → `8.8.8.8`). Cloudflare Worker-прокси убран — сервер в Казахстане, `api.telegram.org` доступен напрямую. Бот переименован из «Test» в «Tezis» (имя + описание через Bot API). Старый сервер Yandex Cloud выключен. |
 | 2026-04-15 | **Прод переведён на монорепу.** Обнаружено, что реальный прод крутится на `111.88.153.18` (а не на `151.109`, куда я по ошибке развернул дубликат — снесён). На прод-VM стояла более старая версия бэкенда без поддержки `X-Bot-Secret` — синхронизировал 3 файла, потом полностью заменил `~/zashitu-web/` на `~/zashitu/` (монорепу). Сеть `deploy_default`, project name `deploy`, volumes преемственны (`SELECT count(*) FROM users → 3` сохранилось). В `deploy/.env.prod` добавлены `BOT_INTERNAL_SECRET`, `BOT_SERVICE_USER_EMAIL`, в `ALLOWED_HOSTS` — `backend,localhost`. Бот `deploy-bot-1` теперь в одной сети с бэкендом. Сгенерированы QR-коды для сайта и бота в `docs/qr/`. |
 | 2026-04-15 | **Слияние в монорепу.** `zashitu-web/{backend,frontend,deploy}` перенесены в `zashitu/`. Старый `Dockerfile` переехал в `deploy/Dockerfile.bot`, корневой `docker-compose.yml` указывает на него. `requirements.txt` → `bot/requirements.txt`. Веб-доки перенесены в `docs/web/`. `.env.example` объединён (ключи бота + бэкенда). `.gitignore`/`.dockerignore` расширены. На прод-VM пока работает только бот, бэкенд — следующим шагом. |
