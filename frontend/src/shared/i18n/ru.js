@@ -68,6 +68,7 @@ export const ru = {
       pending: 'Ожидает оплаты',
       paid: 'Оплачен',
       generating: 'Генерируется…',
+      awaiting_review: 'Ждёт одобрения',
       done: 'Готово',
       failed: 'Ошибка',
     },
@@ -75,6 +76,7 @@ export const ru = {
       download: 'Скачать',
       watch: 'Следить',
       pay: 'Оплатить',
+      open: 'Открыть',
     },
   },
   toast: {

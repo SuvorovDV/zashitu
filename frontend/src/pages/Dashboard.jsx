@@ -9,11 +9,12 @@ import { ru } from '../shared/i18n/ru.js'
 import Spinner from '../components/ui/Spinner.jsx'
 
 const STATUS_MAP = {
-  pending:    { dot: 'bg-[#7A7362]',       label: ru.dashboard.statuses.pending,    badge: 'text-[#B8AE97] bg-[#221E17] border-[#4A402F]' },
-  paid:       { dot: 'bg-blue-400',         label: ru.dashboard.statuses.paid,       badge: 'text-blue-300 bg-blue-500/10 border-blue-500/25' },
-  generating: { dot: 'bg-yellow-400 animate-pulse-slow', label: ru.dashboard.statuses.generating, badge: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/25' },
-  done:       { dot: 'bg-green-400',        label: ru.dashboard.statuses.done,       badge: 'text-green-300 bg-green-500/10 border-green-500/25' },
-  failed:     { dot: 'bg-red-400',          label: ru.dashboard.statuses.failed,     badge: 'text-red-300 bg-red-500/10 border-red-500/25' },
+  pending:         { dot: 'bg-[#7A7362]',       label: ru.dashboard.statuses.pending,         badge: 'text-[#B8AE97] bg-[#221E17] border-[#4A402F]' },
+  paid:            { dot: 'bg-blue-400',         label: ru.dashboard.statuses.paid,            badge: 'text-blue-300 bg-blue-500/10 border-blue-500/25' },
+  generating:      { dot: 'bg-yellow-400 animate-pulse-slow', label: ru.dashboard.statuses.generating, badge: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/25' },
+  awaiting_review: { dot: 'bg-amber-400 animate-pulse-slow',  label: ru.dashboard.statuses.awaiting_review, badge: 'text-amber-300 bg-amber-500/10 border-amber-500/25' },
+  done:            { dot: 'bg-green-400',        label: ru.dashboard.statuses.done,            badge: 'text-green-300 bg-green-500/10 border-green-500/25' },
+  failed:          { dot: 'bg-red-400',          label: ru.dashboard.statuses.failed,          badge: 'text-red-300 bg-red-500/10 border-red-500/25' },
 }
 
 const TIER_LABEL = { basic: 'Базовый', standard: 'Стандарт', premium: 'Премиум' }
@@ -151,6 +152,14 @@ export default function Dashboard() {
                     className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
                   >
                     {ru.dashboard.actions.watch}
+                  </Link>
+                )}
+                {(order.status === 'awaiting_review' || order.status === 'paid') && (
+                  <Link
+                    to={`/generation?order_id=${order.id}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  >
+                    {ru.dashboard.actions.open}
                   </Link>
                 )}
                 {order.status === 'pending' && (
