@@ -165,7 +165,7 @@ DEBUG_SKIP_PAYMENT=true
 - Публично:
   - веб — `https://tezis.176.12.79.36.nip.io` (Caddy + nip.io + auto-TLS)
   - бот — `@ai_presentations_test_bot` (polling напрямую в `api.telegram.org`)
-  - QR-коды: `docs/qr/qr-site.png`, `docs/qr/qr-bot.png` (старые, с IP `111.88.153.18` — пересобрать под новый домен перед публичным запуском)
+  - QR-коды: `docs/qr/qr-site.png` → `https://tezis.176.12.79.36.nip.io`, `docs/qr/qr-bot.png` → `https://t.me/ai_presentations_test_bot` (пересобраны 2026-04-17)
 
 **Репозиторий:** https://github.com/SuvorovDV/zashitu (private)
 
