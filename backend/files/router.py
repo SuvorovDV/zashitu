@@ -210,12 +210,19 @@ async def download_speech(
 
     content = mark_speech_with_slide_boundaries(order.speech_text, slide_titles)
 
-    safe_topic = "".join(c for c in (order.topic or "speech")[:30] if c.isalnum() or c in " _-").strip()
-    if not safe_topic:
-        safe_topic = "speech"
-    download_name = f"Tezis_{safe_topic}_speech.md"
+    # Имя файла: UTF-8 filename по RFC 5987 + ASCII fallback (HTTP-заголовки latin-1).
+    from urllib.parse import quote
+
+    topic = (order.topic or "speech")[:50]
+    full_name = f"Tezis_{topic}_speech.md"
+    ascii_fallback = "".join(c for c in full_name if c.isascii() and (c.isalnum() or c in " _-.")).strip() or "speech.md"
+    utf8_name = quote(full_name, safe="")
     return Response(
         content=content.encode("utf-8"),
         media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{utf8_name}'
+            ),
+        },
     )
