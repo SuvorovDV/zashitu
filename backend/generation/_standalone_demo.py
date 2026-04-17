@@ -60,12 +60,21 @@ def main():
     print(f"Tier: {order.tier}, palette: {order.palette}, detail: {order.detail_level}")
     print()
 
-    print("== Speech ==")
-    speech_text, speech_rec = _generate_speech(order, tier_config)
+    seed = Path("/tmp/seed_speech.md")
+    if seed.exists():
+        speech_text = seed.read_text(encoding="utf-8")
+        print(f"== Speech (seeded from {seed}) ==  chars: {len(speech_text)}")
+        # Меняем topic на тот, под который речь написана — чтобы промпт не рассинхронизировался.
+        if "Кузбасс" in speech_text or "Кемеров" in speech_text:
+            order.topic = "Проблемы развития рынка труда 2020–2025 годов в Кузбассе"
+            order.direction = "Рынок труда, региональная экономика"
+    else:
+        print("== Speech ==")
+        speech_text, speech_rec = _generate_speech(order, tier_config)
+        print(f"  speech chars: {len(speech_text)}")
+        print(f"  stop_reason: {speech_rec.get('raw_response') and 'ok' or 'placeholder'}")
     order.speech_text = speech_text
     Path("/tmp/out_speech.md").write_text(speech_text, encoding="utf-8")
-    print(f"  speech chars: {len(speech_text)}")
-    print(f"  stop_reason: {speech_rec.get('raw_response') and 'ok' or 'placeholder'}")
     print()
 
     print("== Slides ==")
