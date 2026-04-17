@@ -62,6 +62,17 @@ function bulletItems(bullets) {
 // Единый spacing для всех длинных bullet-списков: межстрочный 1.3, воздух между пунктами.
 const BULLET_SPACING = { lineSpacingMultiple: 1.3, paraSpaceBefore: 6 };
 
+// Декоративная SVG-метка в правом углу слайда (image_path — уже растрированный SVG).
+// Рендерится БЕЗ обрезки (contain), чтобы не ломать композицию.
+function cornerDecor(slide, s, pos) {
+  if (!imageExists(s.image_path)) return;
+  slide.addImage({
+    path: s.image_path,
+    x: pos.x, y: pos.y, w: pos.w, h: pos.h,
+    sizing: { type: "contain", w: pos.w, h: pos.h },
+  });
+}
+
 function generatePresentation(plan) {
   const prs = new pptxgen();
   prs.layout = "LAYOUT_16x9";
@@ -192,10 +203,7 @@ function calloutSlide({ prs, pal }, s) {
       fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
     }, BULLET_SPACING)));
   }
-  if (imageExists(s.image_path)) {
-    // Мелкая иконка-акцент в правом верхнем углу под тайтлом.
-    slide.addImage({ path: s.image_path, x: 8.0, y: 0.2, w: 1.6, h: 1.0, sizing: { type: "cover", w: 1.6, h: 1.0 } });
-  }
+  cornerDecor(slide, s, { x: 8.1, y: 3.9, w: 1.5, h: 1.5 });
 }
 
 function twoColSlide({ prs, pal }, s) {
@@ -352,21 +360,16 @@ function defaultSlide({ prs, pal, slideNum, plan }, s) {
   headerBar(prs, slide, pal, s.title, `${slideNum} / ${plan.total_slides}`);
 
   const hasImg = imageExists(s.image_path);
-  const bulletsW = hasImg ? 5.3 : 9;
-  const bulletsX = 0.5;
+  // Декор — правый верхний угол под хедером. Резервируем под него правый гаттер.
+  const bulletsW = hasImg ? 7.4 : 9;
 
   if (s.bullets && s.bullets.length) {
     slide.addText(bulletItems(s.bullets), t(Object.assign({
-      x: bulletsX, y: 1.2, w: bulletsW, h: 4.0,
+      x: 0.5, y: 1.2, w: bulletsW, h: 4.0,
       fontFace: FONT_BODY, fontSize: 15, color: pal.text, align: "left",
     }, BULLET_SPACING)));
   }
-  if (hasImg) {
-    slide.addImage({
-      path: s.image_path, x: 6.0, y: 1.25, w: 3.6, h: 3.9,
-      sizing: { type: "cover", w: 3.6, h: 3.9 },
-    });
-  }
+  cornerDecor(slide, s, { x: 8.1, y: 1.3, w: 1.5, h: 1.5 });
   if (s.source_ref) {
     slide.addShape(prs.shapes.LINE, {
       x: 0.5, y: 5.2, w: 9, h: 0, line: { color: "D1D5DB", width: 0.5 }

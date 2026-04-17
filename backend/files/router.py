@@ -176,8 +176,16 @@ async def download_speech(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Текст выступления в Markdown. Только если include_speech=True и speech_text существует."""
+    """Текст выступления в Markdown с маркерами границ слайдов.
+
+    Маркеры («=== Слайд N: title ===») вставляются на лету через Claude —
+    используя titles из plan.slides. Если plan нет или Claude-запрос упал,
+    отдаём речь без разметки.
+    """
+    import json as _json
     from fastapi.responses import Response
+
+    from generation.tasks import mark_speech_with_slide_boundaries
 
     order = await orders_service.get_order(db, order_id, current_user.id)
     if not order:
@@ -188,12 +196,26 @@ async def download_speech(
             detail="Speech text not available for this order",
         )
 
+    # Достаём titles слайдов из generation_prompt (сохраняется при сборке .pptx).
+    slide_titles: list[str] = []
+    if order.generation_prompt:
+        try:
+            prompt_data = _json.loads(order.generation_prompt)
+            plan = prompt_data.get("slide_plan") or {}
+            slide_titles = [
+                s.get("title") for s in (plan.get("slides") or []) if s.get("title")
+            ]
+        except Exception as e:
+            log.warning(f"download_speech: failed to parse generation_prompt: {e}")
+
+    content = mark_speech_with_slide_boundaries(order.speech_text, slide_titles)
+
     safe_topic = "".join(c for c in (order.topic or "speech")[:30] if c.isalnum() or c in " _-").strip()
     if not safe_topic:
         safe_topic = "speech"
     download_name = f"Tezis_{safe_topic}_speech.md"
     return Response(
-        content=order.speech_text.encode("utf-8"),
+        content=content.encode("utf-8"),
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
     )

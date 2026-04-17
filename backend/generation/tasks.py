@@ -505,17 +505,23 @@ def _images_via_claude_svg(
             continue
 
         system_prompt = (
-            "Ты художник-иллюстратор академических презентаций. "
-            "Возвращаешь ТОЛЬКО валидный SVG-документ — один тег <svg ...>...</svg>, "
+            "Ты создаёшь декоративные SVG-иконки для слайдов презентации. "
+            "Это НЕ основная иллюстрация, а небольшой значок-акцент в углу слайда "
+            "(финальный размер на слайде ~1.3\"×1.3\", поэтому композиция должна быть "
+            "читаемой при малом размере).\n"
+            "Возвращаешь ТОЛЬКО валидный SVG — один тег <svg ...>...</svg>, "
             "без markdown-обёрток, без объяснений, без текста ВНУТРИ svg "
-            "(никаких <text>, <tspan>, цифр, букв — чистая графика). "
-            "Размер: viewBox=\"0 0 1024 768\". "
-            f"Доминирующий цвет: {primary}. Акцент: {accent}. "
-            "Фон прозрачный либо очень светлая заливка. "
-            "Стиль: минимализм, геометрические формы, тонкие линии, чистые силуэты. "
-            "Композиция осмысленная — отражает тему, не абстрактный шум."
+            "(никаких <text>, <tspan>, цифр, букв — чистая графика).\n"
+            "Размер: viewBox=\"0 0 256 256\", фон прозрачный.\n"
+            f"Используй 2–4 цвета из палитры: основной {primary}, акцент {accent}, "
+            "плюс белый и нейтральный серый. Яркие чужие цвета не добавляй.\n"
+            "Стиль: плоская геометрия — круги, дуги, линии, простые силуэты, "
+            "сетки, треугольники. Толщина линий stroke-width от 2 до 6. "
+            "Fill и stroke комбинируй сознательно. Не больше 8 фигур в композиции.\n"
+            "Смысл: метафора темы слайда, но АБСТРАКТНАЯ — не буквальная иллюстрация. "
+            "Избегай лиц, зданий, реалистичных объектов — только знаковая графика."
         )
-        user_prompt = f"Нарисуй SVG-иллюстрацию на тему: {prompt}"
+        user_prompt = f"Нарисуй декоративный SVG-акцент для слайда на тему: {prompt}"
         try:
             resp = client.messages.create(**_messages_kwargs(
                 model=model,
@@ -533,8 +539,9 @@ def _images_via_claude_svg(
             png_path = out_dir / f"{output_stem}_img_{i+1}.png"
             svg_path.write_text(svg, encoding="utf-8")
 
+            # 512px — декор на слайде ~1.3"×1.3", этого хватит при любом зуме.
             result = subprocess.run(
-                ["node", str(_SVG_SCRIPT), str(svg_path), str(png_path), "1280"],
+                ["node", str(_SVG_SCRIPT), str(svg_path), str(png_path), "512"],
                 capture_output=True, text=True, timeout=30,
             )
             if result.returncode != 0 or not png_path.exists():
@@ -549,6 +556,62 @@ def _images_via_claude_svg(
             logger.warning(f"Claude-SVG image {i+1} failed: {e}")
             stats["errors"].append({"index": i + 1, "error": str(e)[:300]})
             slide.pop("image_path", None)
+
+
+def mark_speech_with_slide_boundaries(speech_text: str, slide_titles: list) -> str:
+    """Вставляет маркеры «=== Слайд N: title ===» в текст выступления, привязывая
+    абзацы к слайдам. Используется при скачивании speech.md из дашборда.
+
+    Если ключа Claude нет или модель вернула мусор — возвращаем исходный текст.
+    """
+    if not speech_text or not slide_titles or not settings.ANTHROPIC_API_KEY:
+        return speech_text
+
+    titles_list = "\n".join(f"{i+1}. {t}" for i, t in enumerate(slide_titles))
+    system_prompt = (
+        "Ты разметчик текста выступления под слайды. На вход: текст речи в markdown "
+        "и упорядоченный список заголовков слайдов. Задача: вставить ПЕРЕД каждым "
+        "фрагментом речи строку вида «=== Слайд N: {title} ===» на отдельной строке "
+        "(с пустой строкой до и после). Один слайд может покрывать один или несколько "
+        "подряд идущих абзацев. Не меняй текст, не перефразируй, не добавляй ничего "
+        "своего — ТОЛЬКО вставка маркеров.\n\n"
+        "Если для какого-то слайда в речи нет явного материала — всё равно вставь "
+        "маркер, но без текста под ним (следующий маркер пойдёт сразу). "
+        "Если в речи есть # Вступление / # Основная часть / # Заключение — оставь "
+        "их как есть, маркеры слайдов ставь ВНУТРИ этих секций.\n\n"
+        "Возвращай ТОЛЬКО размеченный markdown, без объяснений и без обёрток ```."
+    )
+    user_prompt = (
+        f"Слайды (в том порядке, в котором появляются в презентации):\n{titles_list}\n\n"
+        f"Текст выступления:\n\n{speech_text}"
+    )
+
+    try:
+        client = _get_anthropic_client()
+        resp = client.messages.create(**_messages_kwargs(
+            model="claude-sonnet-4-6",  # дешёвая модель — это простая разметка
+            max_tokens=16000,
+            temperature=0.2,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        ))
+        marked = resp.content[0].text.strip() if resp.content else ""
+        # Срезаем markdown-обёртку ```markdown ... ```, если вдруг пришла.
+        if marked.startswith("```"):
+            parts = marked.split("```")
+            if len(parts) >= 3:
+                inner = parts[1]
+                if "\n" in inner:
+                    inner = inner.split("\n", 1)[1]
+                marked = inner.strip()
+        # Базовая валидация — должна хотя бы один маркер появиться.
+        if "=== Слайд" not in marked:
+            logger.warning("mark_speech: no markers in response, returning original")
+            return speech_text
+        return marked
+    except Exception as e:
+        logger.warning(f"mark_speech failed: {e}; returning original")
+        return speech_text
 
 
 def _extract_svg(raw: str) -> str:
@@ -699,15 +762,11 @@ def _build_skeleton(order, tier_config) -> list:
         result.append({"name": extra[extra_idx % len(extra)], "layout": "default"})
         extra_idx += 1
 
-    # Вариативность: для не-ВКР — разбавляем макеты. Каждый 4-й default → image_side;
-    # одна «цитатная» вставка в середине; для detailed — ещё одна stats-вставка.
+    # Вариативность: для не-ВКР — разбавляем макеты цитатой и stats. Крупные image-слайды
+    # (image_side/image_full) больше НЕ включаем в rotation — SVG-иллюстрации теперь
+    # рендерятся как компактные декоративные акценты на обычных слайдах (см. pptxgen.js).
     allow_variety = (order.work_type or "").strip() not in ("ВКР",)
     if allow_variety:
-        default_indices = [i for i, s in enumerate(result) if s["layout"] == "default"]
-        for n, i in enumerate(default_indices):
-            if n >= 1 and n % 4 == 0:
-                result[i] = {"name": result[i]["name"], "layout": "image_side"}
-
         # Добавляем `quote` ближе к середине, если в дeckе ≥ 12 слайдов.
         if len(result) >= 12:
             mid = len(result) // 2
@@ -878,21 +937,26 @@ def _build_slides_prompts(order, skeleton: list):
     # Тональность — от типа работы.
     work_tone = WORK_TYPE_TONE.get(order.work_type or "", "нейтральный академический")
 
-    # Иллюстрации разрешены всем, кроме ВКР/защиты диплома.
+    # Декоративные SVG-иллюстрации разрешены всем, кроме ВКР/защиты диплома.
     allow_images = (order.work_type or "").strip() not in ("ВКР",)
     if allow_images:
         images_rule = (
-            "Иллюстрации (image_prompt):\n"
-            "  • На английском. Одно короткое предложение (до 20 слов).\n"
-            "  • СТРОГО БЕЗ ТЕКСТА на картинке: no text, no words, no letters, no numbers, "
+            "Декоративные SVG-акценты (image_prompt):\n"
+            "  • Это НЕ основная картинка слайда — это маленький декоративный значок "
+            "(~5% площади слайда, в углу), оживляющий вёрстку.\n"
+            "  • Стиль: абстрактная геометрия — круги, линии, сетки, дуги, силуэт "
+            "символа тематики. Тонкие линии, никакого реализма.\n"
+            "  • На английском. Одно короткое предложение (до 15 слов).\n"
+            "  • СТРОГО БЕЗ ТЕКСТА: no text, no words, no letters, no numbers, "
             "no captions, no labels, no writing of any kind.\n"
-            "  • Простые сцены: минимализм, концептуальные образы, одна идея, без инфографики.\n"
-            "  • Для layout=image_full и image_side — image_prompt ОБЯЗАТЕЛЕН.\n"
-            "  • Для layout=default/callout/two_col — image_prompt добавляй только если слайд "
-            "без него выглядит пусто. Максимум 30% слайдов с картинками.\n"
-            "  • Пример хорошего image_prompt: "
-            "\"minimalist illustration of data network nodes in soft blue tones, no text\".\n"
-            "  • На layout=section/quote/stats image_prompt НЕ нужен."
+            "  • Ставь image_prompt на 40–60% содержательных слайдов (default/two_col/callout), "
+            "на ВСЕХ сразу не надо — приедается.\n"
+            "  • НЕ ставь image_prompt на layout=section/quote/stats/table/chart "
+            "(там уже своя визуальная логика).\n"
+            "  • Пример: "
+            "\"abstract geometric mark of concentric arcs and a single dot, minimal line art\".\n"
+            "  • Смысл: намёк на тему слайда, не буквальная иллюстрация. "
+            "Одну и ту же метафору не повторяй на разных слайдах."
         )
     else:
         images_rule = (
@@ -935,8 +999,6 @@ def _build_slides_prompts(order, skeleton: list):
   section:    {{"subtitle": "≤60 симв"}}
   quote:      {{"quote": "цитата до 160 симв", "attribution?": "кто сказал"}}
   stats:      {{"intro?": "вводная фраза", "stats": [{{"value": "80%", "label": "подпись"}}, ...]}}
-  image_side: {{"bullets": [2–4 пункта], "side?": "left"|"right", "image_prompt": "..."}}
-  image_full: {{"image_prompt": "..."}}  // только тайтл + фоновая картинка
 
 Дополнительные layout, КОТОРЫЕ ТЫ МОЖЕШЬ ВЫБРАТЬ САМ на слотах default/two_col, если данные того требуют:
   table:      {{"layout": "table", "intro?": "≤120 симв", "headers": ["Столбец 1", "Столбец 2", ...], "rows": [["ячейка", ...], ...]}}
