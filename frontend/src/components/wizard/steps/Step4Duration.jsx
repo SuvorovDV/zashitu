@@ -32,12 +32,12 @@ export default function Step4Duration() {
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-xl font-semibold text-white mb-1">Объём презентации</h2>
-        <p className="text-[#B8AE97] text-sm">
+        <p className="text-[#D2CFC1] text-sm">
           Укажите длительность выступления или точное количество слайдов — что удобнее.
         </p>
       </div>
 
-      <div role="tablist" aria-label="Способ задания объёма" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0F0E0B] border border-[#2E2820]">
+      <div role="tablist" aria-label="Способ задания объёма" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0E0E0C] border border-[#33332C]">
         {[
           { id: 'duration', label: 'По длительности' },
           { id: 'slides',   label: 'По кол-ву слайдов' },
@@ -49,7 +49,7 @@ export default function Step4Duration() {
             aria-selected={mode === m.id}
             onClick={() => switchTo(m.id)}
             className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-              mode === m.id ? 'bg-brand-500 text-[#0F0E0B]' : 'text-[#B8AE97] hover:text-white'
+              mode === m.id ? 'bg-brand-500 text-[#0E0E0C]' : 'text-[#D2CFC1] hover:text-white'
             }`}
           >
             {m.label}
@@ -61,7 +61,7 @@ export default function Step4Duration() {
         <div className="flex flex-col gap-4">
           <div className="text-center">
             <span className="text-4xl font-bold text-brand-400 tabular-nums">{durationValue}</span>
-            <span className="text-[#7A7362] ml-1.5 text-lg">мин</span>
+            <span className="text-[#8F8C7F] ml-1.5 text-lg">мин</span>
           </div>
           <input
             type="range"
@@ -79,7 +79,7 @@ export default function Step4Duration() {
         <div className="flex flex-col gap-4">
           <div className="text-center">
             <span className="text-4xl font-bold text-brand-400 tabular-nums">{slidesValue}</span>
-            <span className="text-[#7A7362] ml-1.5 text-lg">слайдов</span>
+            <span className="text-[#8F8C7F] ml-1.5 text-lg">слайдов</span>
           </div>
           <input
             type="range"
@@ -98,7 +98,7 @@ export default function Step4Duration() {
       {/* Подсказка о тарифе */}
       <div className="rounded-xl border border-brand-500/25 bg-brand-500/8 px-4 py-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs text-[#7A7362] mb-0.5">Этому объёму соответствует тариф</p>
+          <p className="text-xs text-[#8F8C7F] mb-0.5">Этому объёму соответствует тариф</p>
           <p className="text-white font-semibold text-sm">{tierInfo.label}</p>
         </div>
         <span className="text-brand-300 font-bold text-lg tabular-nums">
@@ -129,10 +129,10 @@ function TierMarks({ type, value }) {
         return (
           <span
             key={m.label}
-            className={`tabular-nums ${active ? 'text-brand-400' : 'text-[#7A7362]'}`}
+            className={`tabular-nums ${active ? 'text-brand-400' : 'text-[#8F8C7F]'}`}
           >
             {m.label}
-            <span aria-hidden="true" className="block text-[#7A7362] font-normal normal-case tracking-normal">
+            <span aria-hidden="true" className="block text-[#8F8C7F] font-normal normal-case tracking-normal">
               ≤ {m.at}
             </span>
           </span>

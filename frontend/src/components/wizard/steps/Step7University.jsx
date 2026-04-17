@@ -7,7 +7,7 @@ export default function Step7University() {
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="text-xl font-semibold text-white mb-1">Укажите учебное заведение</h2>
-        <p className="text-[#B8AE97] text-sm">Опционально. Название попадёт на титульный слайд</p>
+        <p className="text-[#D2CFC1] text-sm">Опционально. Название попадёт на титульный слайд</p>
       </div>
       <Input
         label="Учебное заведение"

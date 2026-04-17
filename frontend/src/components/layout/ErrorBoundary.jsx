@@ -23,7 +23,7 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div className="min-h-screen flex items-center justify-center px-5 bg-[#0F0E0B]">
+        <div className="min-h-screen flex items-center justify-center px-5 bg-[#0E0E0C]">
           <div className="max-w-md w-full card rounded-2xl p-8 text-center">
             <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center mx-auto mb-5">
               <svg aria-hidden="true" className="w-7 h-7 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,13 +32,13 @@ export default class ErrorBoundary extends Component {
               </svg>
             </div>
             <h1 className="text-xl font-bold text-white mb-2">Что-то пошло не так</h1>
-            <p className="text-[#B8AE97] text-sm mb-6">
+            <p className="text-[#D2CFC1] text-sm mb-6">
               Произошла неожиданная ошибка в интерфейсе. Попробуйте перезагрузить страницу.
             </p>
             <button
               type="button"
               onClick={this.handleReload}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-[#0F0E0B] font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-[#0E0E0C] font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
             >
               Перезагрузить
             </button>

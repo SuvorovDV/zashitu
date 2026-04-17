@@ -1,5 +1,5 @@
 const TONES = {
-  neutral: 'text-[#B8AE97] bg-[#221E17] border-[#4A402F]',
+  neutral: 'text-[#D2CFC1] bg-[#23231E] border-[#4B4A42]',
   brand:   'text-brand-300 bg-brand-600/15 border-brand-500/25',
   success: 'text-green-300 bg-green-500/10 border-green-500/25',
   warning: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/25',

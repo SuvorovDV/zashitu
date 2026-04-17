@@ -17,7 +17,7 @@ export default function Step5Detail() {
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="text-xl font-semibold text-white mb-1">Уровень детализации</h2>
-        <p className="text-[#B8AE97] text-sm">Насколько подробными должны быть слайды</p>
+        <p className="text-[#D2CFC1] text-sm">Насколько подробными должны быть слайды</p>
       </div>
       <div className="flex flex-col gap-3">
         {LEVELS.map(({ value, label, desc, requiresPremium }) => {
@@ -31,7 +31,7 @@ export default function Step5Detail() {
               className={`px-4 py-3.5 rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                 selected
                   ? 'border-brand-500 bg-brand-500/15'
-                  : 'card hover:border-[#4A402F]'
+                  : 'card hover:border-[#4B4A42]'
               }`}
             >
               <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -44,7 +44,7 @@ export default function Step5Detail() {
                   </span>
                 )}
               </div>
-              <div className="text-xs text-[#7A7362]">{desc}</div>
+              <div className="text-xs text-[#8F8C7F]">{desc}</div>
               {requiresPremium && selected && (
                 <p className="text-[11px] text-brand-400 mt-1.5">
                   Тариф автоматически повышен до Премиум (399 ₽).

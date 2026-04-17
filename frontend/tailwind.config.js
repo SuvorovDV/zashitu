@@ -28,19 +28,20 @@ export default {
         },
         err:  '#FF6A5C',
         warn: '#FFC44D',
-        // Legacy amber aliased to accent so unrewritten pages stop looking amber-y.
-        // Will be removed in commit 9 after every page is ported.
+        // `brand` kept as alias for Step/UI components that still use bg-brand-*
+        // Tailwind classes. Scale is the lime-accent family so everything reads
+        // dark+lime without per-file rewrites.
         brand: {
-          50:  '#FFFBEB',
-          100: '#FEF3C7',
-          200: '#FDE68A',
-          300: '#FCD34D',
-          400: '#FBBF24',
-          500: '#F59E0B',
-          600: '#D97706',
-          700: '#B45309',
-          800: '#92400E',
-          900: '#78350F',
+          50:  '#F9FFE3',
+          100: '#F2FFC5',
+          200: '#E4FF8C',
+          300: '#D8FF63',
+          400: '#C8FF3E',   // = --accent
+          500: '#B8E038',
+          600: '#9CC02E',
+          700: '#7BA024',
+          800: '#5A7418',
+          900: '#304010',
         },
       },
     },

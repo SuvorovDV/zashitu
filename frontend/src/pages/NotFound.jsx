@@ -1,21 +1,76 @@
 import { useNavigate } from 'react-router-dom'
+import Mascot from '../components/ui/Mascot.jsx'
 
 export default function NotFound() {
   const navigate = useNavigate()
+
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center gap-5 px-4 text-center relative">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[300px] rounded-full bg-brand-800/20 blur-[80px] pointer-events-none" />
-      <p className="text-8xl font-bold text-white/8 tracking-tight">404</p>
-      <div className="relative">
-        <p className="text-xl font-semibold text-white">Страница не найдена</p>
-        <p className="text-gray-500 text-sm mt-1">Возможно, вы перешли по неверной ссылке</p>
-      </div>
-      <button
-        onClick={() => navigate('/')}
-        className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium text-sm transition-all"
-      >
-        На главную
-      </button>
-    </div>
+    <main>
+      <section style={{ paddingTop: 80, paddingBottom: 120 }}>
+        <div
+          className="wrap"
+          style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 60, alignItems: 'center' }}
+        >
+          <div>
+            <div
+              className="serif"
+              style={{
+                fontSize: 'clamp(140px, 20vw, 260px)',
+                lineHeight: 0.85,
+                letterSpacing: '-0.04em',
+                margin: 0,
+                color: 'var(--ink)',
+              }}
+            >
+              4<span className="hl" style={{ padding: '0 4px' }}>0</span>4
+            </div>
+            <h1
+              className="serif"
+              style={{
+                fontSize: 'clamp(30px, 3.5vw, 44px)',
+                margin: '16px 0 0',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+              }}
+            >
+              Этой страницы нет в источнике.
+            </h1>
+            <p
+              style={{
+                marginTop: 14,
+                fontSize: 16.5,
+                color: 'var(--ink-2)',
+                maxWidth: 520,
+              }}
+            >
+              Научрук бы сказал: «откуда взяли?». Давайте вернёмся туда, где всё на месте.
+            </p>
+            <div style={{ marginTop: 28, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
+                На дашборд <span className="arrow">→</span>
+              </button>
+              <button className="btn btn-ghost" onClick={() => navigate('/wizard')}>
+                Создать презентацию
+              </button>
+            </div>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <Mascot size={180} state="verify" />
+            <div
+              className="hand"
+              style={{
+                position: 'absolute',
+                right: -20, top: -20,
+                fontSize: 24, color: 'var(--accent)',
+                transform: 'rotate(-5deg)',
+                width: 140, lineHeight: 1.1,
+              }}
+            >
+              с. 404 не существует
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   )
 }

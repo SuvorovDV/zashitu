@@ -63,7 +63,7 @@ export function Modal({ open, onClose, title, children, labelledBy, describedBy 
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-2xl bg-[#1A1712] border border-[#2E2820] shadow-2xl p-6"
+        className="relative w-full max-w-md rounded-2xl bg-[#1A1A16] border border-[#33332C] shadow-2xl p-6"
       >
         {title && (
           <h2 id={labelledBy} className="text-white font-semibold text-lg mb-2">
@@ -94,7 +94,7 @@ export function ConfirmDialog({
   return (
     <Modal open={open} onClose={onClose} title={title} labelledBy="confirm-title" describedBy="confirm-desc">
       {description && (
-        <p id="confirm-desc" className="text-[#B8AE97] text-sm mb-5">
+        <p id="confirm-desc" className="text-[#D2CFC1] text-sm mb-5">
           {description}
         </p>
       )}
@@ -102,14 +102,14 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-[#B8AE97] hover:text-white hover:bg-[#221E17] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          className="px-4 py-2 rounded-lg text-sm font-medium text-[#D2CFC1] hover:text-white hover:bg-[#23231E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
         >
           {cancelLabel}
         </button>
         <button
           type="button"
           onClick={() => { onConfirm?.(); onClose?.() }}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1712] ${confirmClass}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1A16] ${confirmClass}`}
         >
           {confirmLabel}
         </button>

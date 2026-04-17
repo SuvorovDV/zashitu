@@ -15,7 +15,7 @@ export default function Textarea({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-[#B8AE97]">
+        <label htmlFor={inputId} className="text-sm font-medium text-[#D2CFC1]">
           {label}
         </label>
       )}
@@ -24,15 +24,15 @@ export default function Textarea({
         rows={rows}
         aria-invalid={!!error}
         aria-describedby={describedBy}
-        className={`px-3.5 py-2.5 rounded-xl text-sm bg-[#0F0E0B] border text-white placeholder-[#7A7362] focus-visible:outline-none focus-visible:ring-2 transition-colors duration-150 resize-y ${
+        className={`px-3.5 py-2.5 rounded-xl text-sm bg-[#0E0E0C] border text-white placeholder-[#8F8C7F] focus-visible:outline-none focus-visible:ring-2 transition-colors duration-150 resize-y ${
           error
             ? 'border-red-500/50 focus-visible:ring-red-500/40'
-            : 'border-[#2E2820] hover:border-[#4A402F] focus-visible:ring-brand-500 focus-visible:border-brand-500'
+            : 'border-[#33332C] hover:border-[#4B4A42] focus-visible:ring-brand-500 focus-visible:border-brand-500'
         }`}
         {...props}
       />
       {hint && !error && (
-        <p id={`${inputId}-hint`} className="text-xs text-[#7A7362]">{hint}</p>
+        <p id={`${inputId}-hint`} className="text-xs text-[#8F8C7F]">{hint}</p>
       )}
       {error && (
         <p id={`${inputId}-error`} role="alert" aria-live="polite" className="text-xs text-red-400">

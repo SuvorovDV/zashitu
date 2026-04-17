@@ -72,7 +72,7 @@ function variantClasses(variant) {
     case 'error':
       return 'bg-red-500/10 border-red-500/30 text-red-300'
     default:
-      return 'bg-[#1A1712] border-[#2E2820] text-[#F5F1E8]'
+      return 'bg-[#1A1A16] border-[#33332C] text-[#F5F3EC]'
   }
 }
 
