@@ -102,26 +102,9 @@ export default function Landing() {
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden min-h-[92vh] flex flex-col items-center justify-center px-5 py-28">
-        {/* Gradient backdrop */}
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-          {/* Фиолетовое свечение в центре-верху */}
-          <div className="absolute inset-0"
-            style={{
-              background: 'radial-gradient(ellipse 90% 65% at 50% -5%, rgba(217,119,6,0.28) 0%, transparent 70%)',
-            }}
-          />
-          {/* Синеватый отлив снизу-слева */}
-          <div className="absolute bottom-0 left-0 w-1/2 h-1/2"
-            style={{
-              background: 'radial-gradient(ellipse 70% 70% at 0% 100%, rgba(120,53,15,0.20) 0%, transparent 70%)',
-            }}
-          />
-        </div>
-
         <div className="relative z-10 max-w-3xl mx-auto text-center">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-500/30 bg-brand-600/10 text-brand-300 text-xs font-semibold mb-8">
-            <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse-slow" />
             Презентация и текст выступления
           </div>
 
@@ -130,7 +113,7 @@ export default function Landing() {
             style={{ textWrap: 'balance' }}
           >
             Защита диплома<br />
-            <span className="text-gradient">без бессонных ночей</span>
+            <span className="text-white">без бессонных ночей</span>
           </h1>
 
           <p className="text-[#B8AE97] text-lg md:text-xl leading-relaxed mb-10 max-w-2xl mx-auto" style={{ textWrap: 'pretty' }}>
@@ -142,7 +125,7 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               to={ctaHref}
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-base transition-colors duration-200 glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F0E0B]"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-base transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F0E0B]"
             >
               Создать презентацию
               <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +189,7 @@ export default function Landing() {
             </div>
 
             {/* Mode 2: презентация + текст выступления */}
-            <div className="relative rounded-2xl p-7 flex flex-col gap-4 bg-brand-600/12 border-2 border-brand-500/50 glow">
+            <div className="relative rounded-2xl p-7 flex flex-col gap-4 bg-brand-600/12 border-2 border-brand-500/50">
               <div className="absolute -top-3.5 left-6 px-3 py-1 bg-brand-500 text-[#0F0E0B] text-[11px] font-bold rounded-full shadow-lg shadow-brand-900/50 tracking-wide">
                 НОВИНКА
               </div>
@@ -345,7 +328,7 @@ export default function Landing() {
                     key={tier.id}
                     className={`relative rounded-2xl p-7 flex flex-col gap-5 transition-colors duration-200 ${
                       isPopular
-                        ? 'bg-brand-600/12 border-2 border-brand-500/50 glow'
+                        ? 'bg-brand-600/12 border-2 border-brand-500/50'
                         : 'card hover:bg-[#221E17] hover:border-[#4A402F]'
                     }`}
                   >
@@ -403,13 +386,6 @@ export default function Landing() {
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
       <section className="py-28 px-5 relative overflow-hidden border-t border-[#2E2820]" style={{ backgroundColor: '#17140F' }}>
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse 60% 55% at 50% 50%, rgba(217,119,6,0.14) 0%, transparent 70%)',
-          }}
-        />
         <div className="relative z-10 max-w-xl mx-auto text-center">
           <h2
             className="text-4xl md:text-5xl font-bold text-white mb-5 leading-tight"
@@ -422,7 +398,7 @@ export default function Landing() {
           </p>
           <Link
             to={ctaHref}
-            className="inline-flex items-center gap-2 px-9 py-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-base transition-colors duration-200 glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#17140F]"
+            className="inline-flex items-center gap-2 px-9 py-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-base transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#17140F]"
           >
             Начать бесплатно
             <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

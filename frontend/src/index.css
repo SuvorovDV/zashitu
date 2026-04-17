@@ -22,28 +22,6 @@
 }
 
 @layer utilities {
-  /* ── Градиентный текст (янтарь) ─────────────────────── */
-  .text-gradient {
-    background: linear-gradient(135deg, #FDE68A 0%, #FBBF24 45%, #D97706 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* ── Glow-эффекты (янтарь) ─────────────────────────── */
-  .glow {
-    box-shadow:
-      0 0 0 1px rgba(245, 158, 11, 0.28),
-      0 4px 24px -4px rgba(245, 158, 11, 0.45),
-      0 0 60px -16px rgba(245, 158, 11, 0.35);
-  }
-
-  .glow-sm {
-    box-shadow:
-      0 0 0 1px rgba(245, 158, 11, 0.22),
-      0 4px 16px -4px rgba(245, 158, 11, 0.35);
-  }
-
   /* ── Карточки — твёрдый тёплый тёмный фон ──────────── */
   .card {
     background-color: #1A1712;
