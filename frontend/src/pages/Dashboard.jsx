@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client.js'
@@ -8,7 +8,28 @@ import { useToast } from '../components/ui/Toast.jsx'
 import { ConfirmDialog } from '../components/ui/Modal.jsx'
 import { ru } from '../shared/i18n/ru.js'
 import Spinner from '../components/ui/Spinner.jsx'
+import Mascot from '../components/ui/Mascot.jsx'
 
+/* Mapping from backend statuses to bundle badge classes.
+ * Backend: pending (awaiting payment) / paid / generating / awaiting_review / done / failed
+ */
+const STATUS_BADGE = {
+  pending:         { cls: 'payment',    label: ru.dashboard.statuses.pending },
+  paid:            { cls: 'pending',    label: ru.dashboard.statuses.paid },
+  generating:      { cls: 'generating', label: ru.dashboard.statuses.generating },
+  awaiting_review: { cls: 'awaiting',   label: ru.dashboard.statuses.awaiting_review },
+  done:            { cls: 'completed',  label: ru.dashboard.statuses.done },
+  failed:          { cls: 'failed',     label: ru.dashboard.statuses.failed },
+}
+
+const IN_PROGRESS = new Set(['pending', 'paid', 'generating', 'awaiting_review'])
+
+const TIER_LABEL = { basic: 'Базовый', standard: 'Стандарт', premium: 'Премиум' }
+
+function StatusBadge({ status }) {
+  const s = STATUS_BADGE[status] || STATUS_BADGE.pending
+  return <span className={'badge ' + s.cls}><span className="dot" />{s.label}</span>
+}
 
 function SpeechDownloadLink({ orderId }) {
   const [busy, setBusy] = useState(false)
@@ -20,7 +41,6 @@ function SpeechDownloadLink({ orderId }) {
     setBusy(true)
     try {
       const resp = await client.get(filesApi.speechDownloadUrl(orderId), { responseType: 'blob' })
-      // Имя файла — из Content-Disposition (filename*=UTF-8''…), если есть.
       let filename = 'speech.md'
       const cd = resp.headers?.['content-disposition'] || ''
       const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i)
@@ -29,10 +49,11 @@ function SpeechDownloadLink({ orderId }) {
       }
       const url = URL.createObjectURL(resp.data)
       const a = document.createElement('a')
-      a.href = url; a.download = filename
+      a.href = url
+      a.download = filename
       document.body.appendChild(a); a.click(); a.remove()
       URL.revokeObjectURL(url)
-    } catch (err) {
+    } catch {
       toast.error('Не удалось скачать текст')
     } finally {
       setBusy(false)
@@ -42,50 +63,147 @@ function SpeechDownloadLink({ orderId }) {
   return (
     <button
       type="button"
+      className="btn btn-ghost btn-sm"
       disabled={busy}
       onClick={onClick}
       title={busy ? 'Готовим текст с разметкой по слайдам…' : 'Скачать текст выступления (.md)'}
-      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#221E17] hover:bg-[#2E2820] text-[#B8AE97] border border-[#4A402F] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A7362] disabled:opacity-60 disabled:cursor-wait"
     >
-      {busy ? (
-        <>
-          <svg aria-hidden="true" className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-            <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-          Готовим…
-        </>
-      ) : (
-        <>
-          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          {ru.dashboard.actions.downloadSpeech}
-        </>
-      )}
+      {busy ? <><span className="spin" /> готовим…</> : <>речь .md</>}
     </button>
   )
 }
 
-const STATUS_MAP = {
-  pending:         { dot: 'bg-[#7A7362]',       label: ru.dashboard.statuses.pending,         badge: 'text-[#B8AE97] bg-[#221E17] border-[#4A402F]' },
-  paid:            { dot: 'bg-blue-400',         label: ru.dashboard.statuses.paid,            badge: 'text-blue-300 bg-blue-500/10 border-blue-500/25' },
-  generating:      { dot: 'bg-yellow-400 animate-pulse-slow', label: ru.dashboard.statuses.generating, badge: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/25' },
-  awaiting_review: { dot: 'bg-amber-400 animate-pulse-slow',  label: ru.dashboard.statuses.awaiting_review, badge: 'text-amber-300 bg-amber-500/10 border-amber-500/25' },
-  done:            { dot: 'bg-green-400',        label: ru.dashboard.statuses.done,            badge: 'text-green-300 bg-green-500/10 border-green-500/25' },
-  failed:          { dot: 'bg-red-400',          label: ru.dashboard.statuses.failed,          badge: 'text-red-300 bg-red-500/10 border-red-500/25' },
+function Counter({ n, label, accent }) {
+  return (
+    <div>
+      <div
+        className="serif tabular-nums"
+        style={{ fontSize: 40, lineHeight: 1, letterSpacing: '-0.02em', color: accent ? 'var(--accent)' : 'var(--ink)' }}
+      >
+        {n}
+      </div>
+      <div className="mono tiny muted" style={{ marginTop: 6 }}>{label}</div>
+    </div>
+  )
 }
 
-const TIER_LABEL = { basic: 'Базовый', standard: 'Стандарт', premium: 'Премиум' }
-
-function StatusBadge({ status }) {
-  const s = STATUS_MAP[status] || STATUS_MAP.pending
+function Tab({ label, count, active, onClick }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${s.badge}`}>
-      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-      {s.label}
-    </span>
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? 'var(--accent)' : 'transparent',
+        color: active ? 'var(--accent-ink)' : 'var(--ink-2)',
+        border: 0, padding: '8px 16px', borderRadius: 999, cursor: 'pointer',
+        fontFamily: 'var(--sans)', fontSize: 13, fontWeight: active ? 600 : 500,
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+      }}
+    >
+      {label}
+      <span
+        className="mono tiny tabular-nums"
+        style={{ color: active ? 'rgba(14,14,12,0.55)' : 'var(--ink-3)' }}
+      >
+        {count}
+      </span>
+    </button>
+  )
+}
+
+function OrderActions({ order }) {
+  if (order.status === 'done') {
+    return (
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <a href={filesApi.downloadUrl(order.id)} className="btn btn-primary btn-sm">
+          Скачать .pptx
+        </a>
+        {order.include_speech && <SpeechDownloadLink orderId={order.id} />}
+      </div>
+    )
+  }
+  if (order.status === 'generating') {
+    return (
+      <Link to={`/generation?order_id=${order.id}`} className="btn btn-ghost btn-sm">
+        <span className="spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+        генерируется…
+      </Link>
+    )
+  }
+  if (order.status === 'awaiting_review' || order.status === 'paid') {
+    return (
+      <Link to={`/generation?order_id=${order.id}`} className="btn btn-primary btn-sm">
+        Проверить текст <span className="arrow">→</span>
+      </Link>
+    )
+  }
+  if (order.status === 'pending') {
+    return (
+      <Link to={`/payment?order_id=${order.id}`} className="btn btn-primary btn-sm">
+        Доплатить
+      </Link>
+    )
+  }
+  if (order.status === 'failed') {
+    return <span className="mono tiny muted">попробуйте заново</span>
+  }
+  return null
+}
+
+function OrderCard({ order, onDelete }) {
+  return (
+    <div
+      className="card"
+      style={{
+        padding: '20px 24px',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto auto',
+        gap: 24,
+        alignItems: 'center',
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+          <StatusBadge status={order.status} />
+          <span className="mono tiny muted">
+            {TIER_LABEL[order.tier] || order.tier}
+            {order.include_speech ? ' · + речь' : ' · только слайды'}
+          </span>
+        </div>
+        <div
+          className="serif"
+          style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.25, color: 'var(--ink)' }}
+        >
+          {order.topic}
+        </div>
+        <time
+          dateTime={order.created_at}
+          className="mono tiny muted"
+          style={{ marginTop: 8, display: 'inline-block' }}
+        >
+          {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+            .format(new Date(order.created_at))}
+        </time>
+      </div>
+      <div><OrderActions order={order} /></div>
+      <button
+        type="button"
+        onClick={() => onDelete(order)}
+        aria-label={`Удалить заказ «${order.topic}»`}
+        style={{
+          width: 34, height: 34, borderRadius: 8, border: 0,
+          background: 'transparent', color: 'var(--ink-3)', cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background .15s, color .15s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--err)'; e.currentTarget.style.background = 'var(--err-wash)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.background = 'transparent' }}
+      >
+        <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
   )
 }
 
@@ -94,6 +212,7 @@ export default function Dashboard() {
   const reset = useWizardStore((s) => s.reset)
   const queryClient = useQueryClient()
   const toast = useToast()
+  const [tab, setTab] = useState('all')
   const [toDelete, setToDelete] = useState(null)
 
   const { data: orders, isLoading } = useQuery({
@@ -110,146 +229,148 @@ export default function Dashboard() {
     onError: () => toast.error(ru.toast.deleteFailed),
   })
 
+  const counts = useMemo(() => {
+    const o = orders || []
+    return {
+      all:      o.length,
+      done:     o.filter((x) => x.status === 'done').length,
+      progress: o.filter((x) => IN_PROGRESS.has(x.status)).length,
+      failed:   o.filter((x) => x.status === 'failed').length,
+    }
+  }, [orders])
+
+  const filtered = useMemo(() => {
+    const o = orders || []
+    if (tab === 'all')      return o
+    if (tab === 'done')     return o.filter((x) => x.status === 'done')
+    if (tab === 'progress') return o.filter((x) => IN_PROGRESS.has(x.status))
+    if (tab === 'failed')   return o.filter((x) => x.status === 'failed')
+    return o
+  }, [orders, tab])
+
   function handleNew() {
     reset()
     navigate('/wizard')
   }
 
-  return (
-    <div className="max-w-4xl mx-auto px-5 py-12">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white" style={{ textWrap: 'balance' }}>
-            {ru.dashboard.title}
-          </h1>
-          <p className="text-[#7A7362] text-sm mt-1">{ru.dashboard.subtitle}</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleNew}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-        >
-          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
-          {ru.dashboard.newButton}
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div
-          className="flex justify-center py-24"
-          role="status"
-          aria-live="polite"
-          aria-label={ru.common.loading}
-        >
+  if (isLoading) {
+    return (
+      <section style={{ paddingTop: 56, paddingBottom: 96 }}>
+        <div className="wrap" style={{ display: 'flex', justifyContent: 'center' }}>
           <Spinner size="lg" />
         </div>
+      </section>
+    )
+  }
 
-      ) : !orders?.length ? (
-        <div className="card rounded-2xl flex flex-col items-center justify-center py-28 px-8 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#221E17] border border-[#4A402F] flex items-center justify-center mb-5">
-            <svg aria-hidden="true" className="w-7 h-7 text-[#7A7362]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+  const isEmpty = !orders || orders.length === 0
+
+  return (
+    <main>
+      <section style={{ paddingTop: 56, paddingBottom: 24 }}>
+        <div className="wrap">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div className="kicker" style={{ marginBottom: 12 }}>Дашборд</div>
+              <h1
+                className="serif"
+                style={{ fontSize: 'clamp(40px, 4.4vw, 64px)', margin: 0, lineHeight: 1.05, letterSpacing: '-0.02em' }}
+              >
+                {isEmpty
+                  ? <>Добро пожаловать, <span className="hl">в Tezis</span></>
+                  : <>Ваши <span className="hl">презентации</span></>
+                }
+              </h1>
+              {isEmpty && (
+                <p style={{ marginTop: 14, fontSize: 16.5, color: 'var(--ink-2)', maxWidth: 620 }}>
+                  Здесь будут все ваши презентации — заказанные, в процессе и готовые к защите.
+                </p>
+              )}
+            </div>
+            {!isEmpty && (
+              <button className="btn btn-primary" onClick={handleNew}>
+                Создать презентацию <span className="arrow">→</span>
+              </button>
+            )}
           </div>
-          <p className="text-white font-semibold text-lg mb-1.5">{ru.dashboard.emptyTitle}</p>
-          <p className="text-[#7A7362] text-sm mb-7">{ru.dashboard.emptySub}</p>
-          <button
-            type="button"
-            onClick={handleNew}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-          >
-            <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            {ru.dashboard.emptyCta}
-          </button>
-        </div>
 
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {orders.map((order) => (
+          {!isEmpty && (
+            <div style={{ marginTop: 20, display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+              <Counter n={counts.all} label="всего" />
+              <Counter n={counts.done} label="готово" accent />
+              <Counter n={counts.progress} label="в процессе" />
+              <Counter n={counts.failed} label="ошибок" />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section style={{ paddingBottom: 96 }}>
+        <div className="wrap">
+          {isEmpty ? (
             <div
-              key={order.id}
-              className="card rounded-2xl px-5 py-4 flex items-center justify-between gap-4 hover:bg-[#221E17] hover:border-[#4A402F] transition-colors duration-150"
+              className="card"
+              style={{
+                padding: '56px 40px',
+                display: 'grid',
+                gridTemplateColumns: 'auto 1fr auto',
+                gap: 32,
+                alignItems: 'center',
+              }}
             >
-              <div className="flex flex-col gap-2 min-w-0 flex-1">
-                <span className="font-semibold text-white truncate leading-snug">{order.topic}</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StatusBadge status={order.status} />
-                  <span aria-hidden="true" className="text-[#2E2820] text-xs">·</span>
-                  <span className="text-[#7A7362] text-xs">
-                    {TIER_LABEL[order.tier] || order.tier}
-                  </span>
-                  <span aria-hidden="true" className="text-[#2E2820] text-xs">·</span>
-                  <time
-                    dateTime={order.created_at}
-                    className="text-[#7A7362] text-xs tabular-nums"
-                  >
-                    {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(order.created_at))}
-                  </time>
+              <div style={{ position: 'relative' }}>
+                <Mascot size={110} state="happy" />
+                <div
+                  className="hand"
+                  style={{
+                    position: 'absolute', right: -30, top: -8,
+                    fontSize: 22, color: 'var(--accent)', transform: 'rotate(-4deg)',
+                  }}
+                >
+                  давай!
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                {order.status === 'done' && (
-                  <>
-                    <a
-                      href={filesApi.downloadUrl(order.id)}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/25 text-brand-300 border border-brand-500/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                    >
-                      <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      {ru.dashboard.actions.download}
-                    </a>
-                    {order.include_speech && <SpeechDownloadLink orderId={order.id} />}
-                  </>
-                )}
-                {order.status === 'generating' && (
-                  <Link
-                    to={`/generation?order_id=${order.id}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
-                  >
-                    {ru.dashboard.actions.watch}
-                  </Link>
-                )}
-                {(order.status === 'awaiting_review' || order.status === 'paid') && (
-                  <Link
-                    to={`/generation?order_id=${order.id}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                  >
-                    {ru.dashboard.actions.open}
-                  </Link>
-                )}
-                {order.status === 'pending' && (
-                  <Link
-                    to={`/payment?order_id=${order.id}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/25 text-brand-300 border border-brand-500/20 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                  >
-                    {ru.dashboard.actions.pay}
-                  </Link>
-                )}
-
-                <button
-                  type="button"
-                  aria-label={`Удалить заказ «${order.topic}»`}
-                  onClick={() => setToDelete(order)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[#7A7362] hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-                >
-                  <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+              <div>
+                <div className="serif" style={{ fontSize: 36, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                  У вас пока нет презентаций
+                </div>
+                <p style={{ marginTop: 10, color: 'var(--ink-2)', fontSize: 15.5, maxWidth: 520 }}>
+                  Загрузите PDF или DOCX — и через 1–2 минуты получите .pptx, где каждый тезис
+                  помечен страницей источника.
+                </p>
               </div>
+              <button className="btn btn-primary" onClick={handleNew}>
+                Создать первую <span className="arrow">→</span>
+              </button>
             </div>
-          ))}
+          ) : (
+            <>
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4, padding: 4,
+                  border: '1px solid var(--rule-strong)', borderRadius: 999,
+                  width: 'fit-content', marginBottom: 20,
+                }}
+              >
+                <Tab label="Все"        count={counts.all}      active={tab === 'all'}      onClick={() => setTab('all')} />
+                <Tab label="В процессе" count={counts.progress} active={tab === 'progress'} onClick={() => setTab('progress')} />
+                <Tab label="Готовые"    count={counts.done}     active={tab === 'done'}     onClick={() => setTab('done')} />
+                <Tab label="Ошибки"     count={counts.failed}   active={tab === 'failed'}   onClick={() => setTab('failed')} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {filtered.length === 0 ? (
+                  <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
+                    Нет заказов в этой категории
+                  </div>
+                ) : (
+                  filtered.map((o) => <OrderCard key={o.id} order={o} onDelete={setToDelete} />)
+                )}
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </section>
 
       <ConfirmDialog
         open={!!toDelete}
@@ -261,6 +382,6 @@ export default function Dashboard() {
         cancelLabel={ru.common.cancel}
         tone="danger"
       />
-    </div>
+    </main>
   )
 }
