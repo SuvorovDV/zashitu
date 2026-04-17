@@ -1,9 +1,49 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { authApi } from '../../api/index.js'
 import { useAuth } from '../../hooks/index.js'
 import { useWizardStore } from '../../store/index.js'
-import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+
+function Logo() {
+  return (
+    <Link
+      to="/"
+      aria-label="Tezis — на главную"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        border: 0, color: 'var(--ink)',
+        fontFamily: 'var(--serif)', fontSize: 26, letterSpacing: '-0.01em',
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 28, height: 28,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--accent)', color: 'var(--accent-ink)',
+          borderRadius: 8,
+          fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 700,
+          transform: 'rotate(-6deg)',
+        }}
+      >
+        T
+      </span>
+      Tezis
+    </Link>
+  )
+}
+
+function NavLink({ label, to, active, onClick }) {
+  const common = {
+    background: active ? 'var(--surface-2)' : 'transparent',
+    color: active ? 'var(--ink)' : 'var(--ink-3)',
+    border: 0, padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
+    fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: active ? 500 : 400,
+    textDecoration: 'none',
+  }
+  if (onClick) return <button onClick={onClick} style={common}>{label}</button>
+  return <Link to={to} style={common}>{label}</Link>
+}
 
 export default function Navbar() {
   const { user } = useAuth()
@@ -11,10 +51,11 @@ export default function Navbar() {
   const queryClient = useQueryClient()
   const location = useLocation()
   const resetWizard = useWizardStore((s) => s.reset)
-  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
+
+  const isActive = (path) =>
+    location.pathname === path || location.pathname.startsWith(path + '/')
 
   function handleNewOrder() {
-    // Сброс черновика — иначе в визард подтягиваются старые ответы.
     resetWizard()
     navigate('/wizard')
   }
@@ -23,8 +64,6 @@ export default function Navbar() {
     try {
       await authApi.logout()
     } catch (e) {
-      // Сервер может быть недоступен или сессия уже истекла — клиентский
-      // logout всё равно важнее чем серверный ответ.
       console.warn('logout request failed:', e)
     }
     queryClient.removeQueries({ queryKey: ['auth', 'me'] })
@@ -33,70 +72,59 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-[#2E2820] bg-[#0F0E0B]/90 backdrop-blur-xl">
-      <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
+    <header
+      style={{
+        borderBottom: '1px solid var(--rule)',
+        background: 'rgba(14, 14, 12, 0.82)',
+        position: 'sticky', top: 0, zIndex: 50,
+        backdropFilter: 'saturate(140%) blur(10px)',
+        WebkitBackdropFilter: 'saturate(140%) blur(10px)',
+      }}
+    >
+      <div className="wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+          <Logo />
 
-        {/* Логотип */}
-        <Link
-          to="/"
-          className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-lg"
-          aria-label="Tezis — на главную"
-        >
-          <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-brand-900/50 group-hover:bg-brand-500 transition-colors duration-200">
-            T
-          </div>
-          <span className="text-[15px] font-semibold text-white tracking-tight">Tezis</span>
-        </Link>
+          {user && (
+            <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <NavLink label="Дашборд" to="/dashboard" active={isActive('/dashboard')} />
+              <NavLink label="Создать"  onClick={handleNewOrder} active={isActive('/wizard')} />
+            </nav>
+          )}
+        </div>
 
-        {/* Навигация */}
-        <div className="flex items-center gap-1">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {user ? (
             <>
-              <Link
-                to="/dashboard"
-                aria-current={isActive('/dashboard') ? 'page' : undefined}
-                className={`text-sm transition-colors duration-150 px-3 py-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                  isActive('/dashboard')
-                    ? 'text-white bg-[#221E17]'
-                    : 'text-[#B8AE97] hover:text-white hover:bg-[#221E17]'
-                }`}
+              <div
+                className="mono tiny muted"
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
               >
-                Мои заказы
-              </Link>
-              <button
-                type="button"
-                onClick={handleNewOrder}
-                aria-current={isActive('/wizard') ? 'page' : undefined}
-                className="text-sm font-semibold bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg transition-colors duration-150 shadow-md shadow-brand-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-              >
-                + Новая
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-sm text-[#7A7362] hover:text-[#B8AE97] transition-colors duration-150 px-3 py-2 rounded-lg hover:bg-[#221E17] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
-                Выйти
-              </button>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 24, height: 24, borderRadius: '50%',
+                    background: 'var(--surface-2)', border: '1px solid var(--rule)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--ink)', fontSize: 11, fontFamily: 'var(--sans)', fontWeight: 600,
+                  }}
+                >
+                  {(user.email || 'T').charAt(0).toUpperCase()}
+                </span>
+                {user.email}
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={handleLogout}>Выйти</button>
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="text-sm text-[#B8AE97] hover:text-white transition-colors duration-150 px-3 py-2 rounded-lg hover:bg-[#221E17] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
-                Войти
-              </Link>
-              <Link
-                to="/register"
-                className="text-sm font-semibold bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg transition-colors duration-150 shadow-md shadow-brand-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-              >
-                Начать бесплатно
+              <Link to="/login" className="btn-text" style={{ fontSize: 14 }}>Войти</Link>
+              <Link to="/register" className="btn btn-primary btn-sm">
+                Создать презентацию <span className="arrow">→</span>
               </Link>
             </>
           )}
         </div>
       </div>
-    </nav>
+    </header>
   )
 }

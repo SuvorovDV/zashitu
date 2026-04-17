@@ -18,7 +18,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <ToastProvider>
-          <div className="min-h-screen flex flex-col bg-[#0F0E0B]">
+          <div className="min-h-screen flex flex-col">
             <TopProgressBar />
             <Navbar />
             <main className="flex-1">
