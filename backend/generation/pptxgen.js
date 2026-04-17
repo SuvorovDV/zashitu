@@ -59,6 +59,9 @@ function bulletItems(bullets) {
   }));
 }
 
+// Единый spacing для всех длинных bullet-списков: межстрочный 1.3, воздух между пунктами.
+const BULLET_SPACING = { lineSpacingMultiple: 1.3, paraSpaceBefore: 6 };
+
 function generatePresentation(plan) {
   const prs = new pptxgen();
   prs.layout = "LAYOUT_16x9";
@@ -80,6 +83,8 @@ function generatePresentation(plan) {
       case "stats":      statsSlide(ctx, s); break;
       case "image_full": imageFullSlide(ctx, s); break;
       case "image_side": imageSideSlide(ctx, s); break;
+      case "table":      tableSlide(ctx, s); break;
+      case "chart":      chartSlide(ctx, s); break;
       default:           defaultSlide(ctx, s);
     }
   });
@@ -177,15 +182,15 @@ function calloutSlide({ prs, pal }, s) {
     color: pal.text, align: "left", margin: 0,
   }));
   slide.addText(s.callout || "", t({
-    x: 0.5, y: 1.3, w: 9, h: 2.2,
+    x: 0.5, y: 1.2, w: 9, h: 1.8,
     fontFace: FONT_TITLE, fontSize: 28, bold: true, italic: true,
     color: pal.primary, align: "center", valign: "middle", margin: 0, wrap: true,
   }));
   if (s.bullets && s.bullets.length) {
-    slide.addText(bulletItems(s.bullets), t({
-      x: 0.5, y: 3.7, w: 9, h: 1.5,
+    slide.addText(bulletItems(s.bullets), t(Object.assign({
+      x: 0.5, y: 3.15, w: 9, h: 2.1,
       fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
-    }));
+    }, BULLET_SPACING)));
   }
   if (imageExists(s.image_path)) {
     // Мелкая иконка-акцент в правом верхнем углу под тайтлом.
@@ -209,10 +214,10 @@ function twoColSlide({ prs, pal }, s) {
       }));
     }
     if (col.bullets && col.bullets.length) {
-      slide.addText(bulletItems(col.bullets), t({
+      slide.addText(bulletItems(col.bullets), t(Object.assign({
         x, y: col.heading ? 1.65 : 1.1, w: 4.3, h: 3.6,
         fontFace: FONT_BODY, fontSize: 13, color: pal.text, align: "left",
-      }));
+      }, BULLET_SPACING)));
     }
   });
   slide.addShape(prs.shapes.LINE, {
@@ -334,10 +339,10 @@ function imageSideSlide({ prs, pal }, s) {
   }
 
   if (s.bullets && s.bullets.length) {
-    slide.addText(bulletItems(s.bullets), t({
+    slide.addText(bulletItems(s.bullets), t(Object.assign({
       x: textX, y: 1.4, w: 4.3, h: 3.7,
       fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
-    }));
+    }, BULLET_SPACING)));
   }
 }
 
@@ -351,10 +356,10 @@ function defaultSlide({ prs, pal, slideNum, plan }, s) {
   const bulletsX = 0.5;
 
   if (s.bullets && s.bullets.length) {
-    slide.addText(bulletItems(s.bullets), t({
+    slide.addText(bulletItems(s.bullets), t(Object.assign({
       x: bulletsX, y: 1.2, w: bulletsW, h: 4.0,
       fontFace: FONT_BODY, fontSize: 15, color: pal.text, align: "left",
-    }));
+    }, BULLET_SPACING)));
   }
   if (hasImg) {
     slide.addImage({
@@ -372,6 +377,118 @@ function defaultSlide({ prs, pal, slideNum, plan }, s) {
       color: "9CA3AF", align: "left", margin: 0,
     }));
   }
+}
+
+function tableSlide({ prs, pal }, s) {
+  const slide = prs.addSlide();
+  slide.background = { color: pal.light };
+  headerBar(prs, slide, pal, s.title, null);
+
+  const headers = Array.isArray(s.headers) ? s.headers : [];
+  const rows = Array.isArray(s.rows) ? s.rows : [];
+  if (!rows.length) {
+    // Защита: если данные пусты — покажем подсказку вместо пустоты.
+    slide.addText("Нет данных для таблицы", t({
+      x: 0.5, y: 2.4, w: 9, h: 0.8, fontSize: 16, italic: true,
+      color: pal.text, align: "center",
+    }));
+    return;
+  }
+
+  if (s.intro) {
+    slide.addText(s.intro, t({
+      x: 0.5, y: 1.1, w: 9, h: 0.45,
+      fontFace: FONT_BODY, fontSize: 13, color: pal.text, align: "left", margin: 0,
+    }));
+  }
+
+  // Чередуем заливку строк. Заголовок — primary, с белым текстом.
+  const headerRow = headers.map((h) => ({
+    text: String(h ?? ""),
+    options: { bold: true, color: pal.white, fill: { color: pal.primary }, align: "center", valign: "middle" },
+  }));
+  const bodyRows = rows.map((row, ri) => row.map((cell) => ({
+    text: String(cell ?? ""),
+    options: {
+      color: pal.text,
+      fill: { color: ri % 2 === 0 ? pal.white : pal.light },
+      align: "left", valign: "middle",
+    },
+  })));
+  const tableData = headers.length ? [headerRow, ...bodyRows] : bodyRows;
+
+  // Размер подбираем по числу строк: меньше строк — крупнее.
+  const rowCount = tableData.length;
+  const fontSize = rowCount <= 6 ? 14 : rowCount <= 10 ? 12 : 10;
+  const tableY = s.intro ? 1.7 : 1.25;
+  const tableH = 5.3 - tableY;
+
+  slide.addTable(tableData, {
+    x: 0.4, y: tableY, w: 9.2, h: tableH,
+    fontFace: FONT_BODY, fontSize, lang: LANG,
+    border: { type: "solid", color: "D1D5DB", pt: 0.5 },
+    colW: headers.length ? distributeColumns(headers.length, 9.2) : undefined,
+    autoPage: false,
+  });
+}
+
+function distributeColumns(count, totalW) {
+  if (count <= 1) return [totalW];
+  // Первая колонка чуть шире (обычно «Показатель/Год»), остальные — поровну.
+  const firstW = totalW * 0.34;
+  const rest = (totalW - firstW) / (count - 1);
+  return [firstW, ...Array(count - 1).fill(rest)];
+}
+
+function chartSlide({ prs, pal }, s) {
+  const slide = prs.addSlide();
+  slide.background = { color: pal.light };
+  headerBar(prs, slide, pal, s.title, null);
+
+  const labels = Array.isArray(s.labels) ? s.labels : [];
+  const seriesIn = Array.isArray(s.series) ? s.series : [];
+  if (!labels.length || !seriesIn.length) {
+    slide.addText("Нет данных для графика", t({
+      x: 0.5, y: 2.4, w: 9, h: 0.8, fontSize: 16, italic: true,
+      color: pal.text, align: "center",
+    }));
+    return;
+  }
+
+  const chartData = seriesIn.map((ser) => ({
+    name: String(ser.name || ""),
+    labels,
+    values: (ser.data || []).map((v) => Number(v) || 0),
+  }));
+
+  const typeKey = String(s.chart_type || "bar").toLowerCase();
+  const chartType = {
+    bar:  prs.charts.BAR,
+    line: prs.charts.LINE,
+    pie:  prs.charts.PIE,
+  }[typeKey] || prs.charts.BAR;
+
+  if (s.intro) {
+    slide.addText(s.intro, t({
+      x: 0.5, y: 1.1, w: 9, h: 0.45,
+      fontFace: FONT_BODY, fontSize: 13, color: pal.text, align: "left", margin: 0,
+    }));
+  }
+
+  const chartY = s.intro ? 1.7 : 1.25;
+  const chartH = 5.3 - chartY;
+
+  slide.addChart(chartType, chartData, {
+    x: 0.5, y: chartY, w: 9.0, h: chartH,
+    chartColors: [pal.primary, pal.accent, pal.text, "8b5cf6", "f59e0b"],
+    showLegend: seriesIn.length > 1 || typeKey === "pie",
+    legendPos: "b",
+    catAxisLabelFontSize: 10,
+    valAxisLabelFontSize: 10,
+    dataLabelFontSize: 10,
+    showTitle: false,
+    lang: LANG,
+  });
 }
 
 function finalSlide(prs, plan, pal) {

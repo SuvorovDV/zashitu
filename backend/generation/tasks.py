@@ -53,7 +53,19 @@ class StatItem(BaseModel):
     label: str = ""     # Подпись снизу
 
 
+class ChartSeries(BaseModel):
+    name: str = ""
+    data: List[float] = Field(default_factory=list)
+
+
+# Layouts Claude МОЖЕТ переопределить из контента (если данные располагают к таблице/графику).
+# section/callout/quote/stats/image_* остаются закреплёнными за скелетом.
+OVERRIDABLE_LAYOUTS = {"table", "chart"}
+
+
 class SlideContent(BaseModel):
+    # Claude может переопределить layout, если хочет table/chart вместо default/two_col.
+    layout: Optional[str] = None
     bullets: Optional[List[str]] = None
     callout: Optional[str] = None
     columns: Optional[List[SlideColumn]] = None
@@ -71,6 +83,13 @@ class SlideContent(BaseModel):
     image_prompt: Optional[str] = None
     # После генерации — относительный путь к картинке в OUTPUT_DIR.
     image_path: Optional[str] = None
+    # Layout=table — табличные данные.
+    headers: Optional[List[str]] = None
+    rows: Optional[List[List[str]]] = None
+    # Layout=chart — нативный PPTX-график.
+    chart_type: Optional[str] = None  # "bar" | "line" | "pie"
+    labels: Optional[List[str]] = None
+    series: Optional[List[ChartSeries]] = None
 
 
 # ── Описания палитр для Claude (чтобы контент попадал в визуальную тональность) ───
@@ -85,6 +104,21 @@ PALETTE_MOODS = {
     "berry_cream":        "бордово-кремовый, мягкий, литература/гуманитарные",
     "sage_calm":          "мятный, спокойный и аналитичный, научные данные",
     "cherry_bold":        "тёмно-красный, драматический, политика/социология",
+}
+
+# Хекс-пары (primary, accent) по палитре — для SVG-промптов.
+# Должны совпадать с PALETTES в pptxgen.js — меняй синхронно.
+PALETTE_COLORS = {
+    "midnight_executive": ("#1E2761", "#CADCFC"),
+    "forest_moss":        ("#2C5F2D", "#97BC62"),
+    "coral_energy":       ("#F96167", "#2F3C7E"),
+    "warm_terracotta":    ("#B85042", "#A7BEAE"),
+    "ocean_gradient":     ("#065A82", "#1C7293"),
+    "charcoal_minimal":   ("#36454F", "#212121"),
+    "teal_trust":         ("#028090", "#02C39A"),
+    "berry_cream":        ("#6D2E46", "#A26769"),
+    "sage_calm":          ("#50808E", "#84B59F"),
+    "cherry_bold":        ("#990011", "#2F3C7E"),
 }
 
 # ── Плотность текста в зависимости от уровня детализации ─────────────────────
@@ -295,9 +329,14 @@ def _pptxgenjs_generator(order, file_path, tier_config):
         slide_contents, _ = _generate_placeholder(order, skeleton)
         claude_prompt["placeholder_used"] = True
 
-    # Генерируем картинки для слайдов с image_prompt (только если есть OPENAI_API_KEY).
-    # Результат — image_path (рядом с .pptx), который pptxgen.js кладёт на слайд.
-    image_stats = _generate_images_for_slides(slide_contents, output_path.stem)
+    # Генерируем иллюстрации для слайдов с image_prompt.
+    # Backend: OpenAI (если есть ключ) → Claude-SVG (если есть ANTHROPIC_API_KEY) → disabled.
+    image_stats = _generate_images_for_slides(
+        slide_contents,
+        output_path.stem,
+        palette_id=(order.palette or "midnight_executive"),
+        model=model,
+    )
     claude_prompt["image_generation"] = image_stats
 
     plan = _assemble_plan(order, tier_config, skeleton, slide_contents, str(output_path))
@@ -347,39 +386,61 @@ def _pptxgenjs_generator(order, file_path, tier_config):
     return output_filename, prompt_json
 
 
-def _generate_images_for_slides(slide_contents: list, output_stem: str) -> dict:
-    """
-    Вызывает OpenAI Images API для каждого слайда с image_prompt.
-    Сохраняет PNG в OUTPUT_DIR/{output_stem}_img_{i}.png, заполняет `image_path`.
+_SVG_SCRIPT = Path(__file__).parent / "svg_to_png.js"
 
-    Возвращает статистику: {requested, generated, errors, model, disabled_reason?}.
-    Если OPENAI_API_KEY пуст — просто возвращает статус «disabled» (slides без картинок).
+
+def _generate_images_for_slides(
+    slide_contents: list, output_stem: str, palette_id: str = "midnight_executive", model: str = "claude-sonnet-4-6"
+) -> dict:
     """
+    Иллюстрации для слайдов с image_prompt.
+
+    Backend выбирается так:
+      • OPENAI_API_KEY задан → OpenAI Images API (фотореализм).
+      • иначе если ANTHROPIC_API_KEY задан → Claude генерирует SVG, растеризуем через resvg-js.
+      • иначе — disabled.
+
+    Сохраняет PNG в OUTPUT_DIR/{output_stem}_img_{i}.png, заполняет `image_path`.
+    """
+    requested = sum(1 for s in slide_contents if s.get("image_prompt"))
     stats = {
-        "requested": sum(1 for s in slide_contents if s.get("image_prompt")),
+        "requested": requested,
         "generated": 0,
         "errors": [],
-        "model": settings.IMAGE_MODEL,
-        "size": settings.IMAGE_SIZE,
-        "negative_prompt_suffix": (
-            "no text, no words, no letters, no numbers, no captions, "
-            "no writing of any kind, clean minimalist composition"
-        ),
+        "backend": None,
+        "model": None,
     }
-    if not slide_contents:
-        return stats
-    if not settings.OPENAI_API_KEY:
-        stats["disabled_reason"] = "OPENAI_API_KEY is not set — images skipped"
-        return stats
-    if stats["requested"] == 0:
+    if not slide_contents or requested == 0:
         stats["disabled_reason"] = "no image_prompt fields in slides"
         return stats
 
+    if settings.OPENAI_API_KEY:
+        stats["backend"] = "openai"
+        stats["model"] = settings.IMAGE_MODEL
+        stats["size"] = settings.IMAGE_SIZE
+        _images_via_openai(slide_contents, output_stem, stats)
+    elif settings.ANTHROPIC_API_KEY:
+        stats["backend"] = "claude-svg"
+        stats["model"] = model
+        _images_via_claude_svg(slide_contents, output_stem, stats, palette_id, model)
+    else:
+        stats["disabled_reason"] = "neither OPENAI_API_KEY nor ANTHROPIC_API_KEY is set"
+
+    return stats
+
+
+def _images_via_openai(slide_contents: list, output_stem: str, stats: dict) -> None:
     try:
         from openai import OpenAI
     except ImportError:
         stats["disabled_reason"] = "openai package not installed"
-        return stats
+        return
+
+    neg_suffix = (
+        "no text, no words, no letters, no numbers, no captions, "
+        "no writing of any kind, clean minimalist composition"
+    )
+    stats["negative_prompt_suffix"] = neg_suffix
 
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     out_dir = Path(settings.OUTPUT_DIR)
@@ -389,10 +450,7 @@ def _generate_images_for_slides(slide_contents: list, output_stem: str) -> dict:
         prompt = slide.get("image_prompt")
         if not prompt:
             continue
-        # Жёстко добавляем negative-prompt — никаких подписей на картинке.
-        safe_prompt = (
-            f"{prompt}. {stats['negative_prompt_suffix']}."
-        )
+        safe_prompt = f"{prompt}. {neg_suffix}."
         try:
             resp = client.images.generate(
                 model=settings.IMAGE_MODEL,
@@ -401,13 +459,11 @@ def _generate_images_for_slides(slide_contents: list, output_stem: str) -> dict:
                 n=1,
             )
             data = resp.data[0]
-            img_filename = f"{output_stem}_img_{i+1}.png"
-            img_path = out_dir / img_filename
+            img_path = Path(settings.OUTPUT_DIR) / f"{output_stem}_img_{i+1}.png"
 
             if getattr(data, "b64_json", None):
                 img_path.write_bytes(base64.b64decode(data.b64_json))
             elif getattr(data, "url", None):
-                # Для моделей, возвращающих URL (dall-e-3), качаем отдельно.
                 import urllib.request
                 with urllib.request.urlopen(data.url, timeout=60) as r:
                     img_path.write_bytes(r.read())
@@ -416,13 +472,91 @@ def _generate_images_for_slides(slide_contents: list, output_stem: str) -> dict:
 
             slide["image_path"] = str(img_path)
             stats["generated"] += 1
-            logger.info(f"Generated image {i+1} for {output_stem}")
+            logger.info(f"Generated OpenAI image {i+1} for {output_stem}")
         except Exception as e:
-            logger.warning(f"Image {i+1} generation failed: {e}")
+            logger.warning(f"OpenAI image {i+1} failed: {e}")
             stats["errors"].append({"index": i + 1, "error": str(e)[:300]})
-            slide.pop("image_path", None)  # на всякий случай
+            slide.pop("image_path", None)
 
-    return stats
+
+def _images_via_claude_svg(
+    slide_contents: list, output_stem: str, stats: dict, palette_id: str, model: str
+) -> None:
+    """Claude рисует минималистичные SVG в палитре слайда, resvg-js растеризует в PNG."""
+    primary, accent = PALETTE_COLORS.get(palette_id, ("#1E2761", "#CADCFC"))
+    stats["palette_primary"] = primary
+    stats["palette_accent"] = accent
+
+    client = _get_anthropic_client()
+    out_dir = Path(settings.OUTPUT_DIR)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, slide in enumerate(slide_contents):
+        prompt = slide.get("image_prompt")
+        if not prompt:
+            continue
+
+        system_prompt = (
+            "Ты художник-иллюстратор академических презентаций. "
+            "Возвращаешь ТОЛЬКО валидный SVG-документ — один тег <svg ...>...</svg>, "
+            "без markdown-обёрток, без объяснений, без текста ВНУТРИ svg "
+            "(никаких <text>, <tspan>, цифр, букв — чистая графика). "
+            "Размер: viewBox=\"0 0 1024 768\". "
+            f"Доминирующий цвет: {primary}. Акцент: {accent}. "
+            "Фон прозрачный либо очень светлая заливка. "
+            "Стиль: минимализм, геометрические формы, тонкие линии, чистые силуэты. "
+            "Композиция осмысленная — отражает тему, не абстрактный шум."
+        )
+        user_prompt = f"Нарисуй SVG-иллюстрацию на тему: {prompt}"
+        try:
+            resp = client.messages.create(
+                model=model,
+                max_tokens=8000,
+                temperature=0.5,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            svg_raw = resp.content[0].text.strip() if resp.content else ""
+            svg = _extract_svg(svg_raw)
+            if not svg:
+                raise RuntimeError(f"no <svg> tag in Claude response (stop={resp.stop_reason})")
+
+            svg_path = out_dir / f"{output_stem}_img_{i+1}.svg"
+            png_path = out_dir / f"{output_stem}_img_{i+1}.png"
+            svg_path.write_text(svg, encoding="utf-8")
+
+            result = subprocess.run(
+                ["node", str(_SVG_SCRIPT), str(svg_path), str(png_path), "1280"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode != 0 or not png_path.exists():
+                raise RuntimeError(
+                    f"svg_to_png failed (rc={result.returncode}): {result.stderr.strip()[:300]}"
+                )
+
+            slide["image_path"] = str(png_path)
+            stats["generated"] += 1
+            logger.info(f"Generated Claude-SVG image {i+1} for {output_stem}")
+        except Exception as e:
+            logger.warning(f"Claude-SVG image {i+1} failed: {e}")
+            stats["errors"].append({"index": i + 1, "error": str(e)[:300]})
+            slide.pop("image_path", None)
+
+
+def _extract_svg(raw: str) -> str:
+    """Достаёт тег <svg ...>...</svg> из ответа Claude, срезая markdown-обёртки."""
+    if not raw:
+        return ""
+    s = raw.strip()
+    if s.startswith("```"):
+        parts = s.split("```")
+        if len(parts) >= 3:
+            inner = parts[1]
+            if "\n" in inner:
+                inner = inner.split("\n", 1)[1]
+            s = inner.strip()
+    m = re.search(r"<svg\b[^>]*>.*?</svg>", s, flags=re.DOTALL | re.IGNORECASE)
+    return m.group(0) if m else ""
 
 
 def _render_preview(pptx_path: Path) -> int:
@@ -777,7 +911,20 @@ def _build_slides_prompts(order, skeleton: list):
   quote:      {{"quote": "цитата до 160 симв", "attribution?": "кто сказал"}}
   stats:      {{"intro?": "вводная фраза", "stats": [{{"value": "80%", "label": "подпись"}}, ...]}}
   image_side: {{"bullets": [2–4 пункта], "side?": "left"|"right", "image_prompt": "..."}}
-  image_full: {{"image_prompt": "..."}}  // только тайтл + фоновая картинка"""
+  image_full: {{"image_prompt": "..."}}  // только тайтл + фоновая картинка
+
+Дополнительные layout, КОТОРЫЕ ТЫ МОЖЕШЬ ВЫБРАТЬ САМ на слотах default/two_col, если данные того требуют:
+  table:      {{"layout": "table", "intro?": "≤120 симв", "headers": ["Столбец 1", "Столбец 2", ...], "rows": [["ячейка", ...], ...]}}
+  chart:      {{"layout": "chart", "chart_type": "bar"|"line"|"pie", "intro?": "≤120 симв", "labels": ["2020", "2021", ...], "series": [{{"name": "Показатель", "data": [1, 2, 3]}}, ...]}}
+
+Когда выбирать table / chart (переопределяй layout слота на table или chart):
+- table: сравнительные данные с ≥3 строками И ≥2 колонками (отраслевая структура, показатели по годам, категориям).
+  НЕ используй таблицу ради 1-2 строк — оставь bullets. Ячейки — краткие, числа с единицами («12,4 %», «1 287 тыс.»).
+  Максимум 10 строк и 5 колонок — иначе не влезет на слайд.
+- chart: численный ряд (временная динамика → line, сравнение категорий → bar, доли целого → pie).
+  Pie — до 6 сегментов. Bar/line — до 8 точек на серию. Имена серий короткие (≤20 симв).
+  Значения — числа без кавычек и без единиц (единицы уходят в `name` серии: «Безработица, %»).
+- Приоритет: если в работе есть реальная таблица или график — ВОСПРОИЗВОДИ их. Не выдумывай цифры."""
 
     presenter_line = ""
     if order.presenter_name or order.presenter_role:
@@ -1135,7 +1282,19 @@ def _assemble_plan(order, tier_config, skeleton, contents, output_path) -> dict:
     for sec, content in zip(skeleton, contents):
         slide = {"title": sec["name"], "layout": sec["layout"]}
         slide.update(content)
-        if sec["layout"] == "default" and order.mode == "source_grounded":
+        # Override layout только если Claude предложил table/chart И данные валидны.
+        # Иначе откатываемся на skeleton-layout (во избежание пустых слайдов).
+        override = content.get("layout")
+        if override in OVERRIDABLE_LAYOUTS and sec["layout"] in ("default", "two_col"):
+            if override == "table" and content.get("rows") and content.get("headers"):
+                slide["layout"] = "table"
+            elif override == "chart" and content.get("series") and content.get("labels"):
+                slide["layout"] = "chart"
+            else:
+                slide["layout"] = sec["layout"]  # rollback
+        else:
+            slide["layout"] = sec["layout"]
+        if slide["layout"] == "default" and order.mode == "source_grounded":
             slide.setdefault("source_ref", "Источник: загруженная работа")
         slides.append(slide)
 

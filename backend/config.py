@@ -128,7 +128,7 @@ TIERS: Dict[str, Any] = {
         "slides": 30,
         "max_slides": 30,
         "max_duration_minutes": 45,
-        "model": "claude-opus-4-6",
+        "model": "claude-opus-4-7",
         "label": "Премиум",
     },
 }
