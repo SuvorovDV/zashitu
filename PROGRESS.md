@@ -155,25 +155,25 @@ DEBUG_SKIP_PAYMENT=true
 
 ## Деплой
 
-**Прод (Yandex Cloud VM `erkobrax@111.88.153.18`):**
+**Прод (FirstVDS KVM, Алматы, `root@176.12.79.36`):**
 - Всё живёт в `~/zashitu/` (монорепа с GitHub)
-- Запуск: `docker compose -p deploy -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod up -d`
+- Запуск: `docker compose -p deploy -f deploy/docker-compose.prod.yml up -d` (флаг `--env-file` не нужен — в `deploy/` симлинк `.env → .env.prod`)
 - 6 контейнеров под проектом `deploy`: `postgres`, `redis`, `backend`, `worker`, `frontend`, `bot`
 - Volumes `deploy_postgres_data`, `deploy_uploads`, `deploy_outputs`, `deploy_caddy_*` — данные юзеров и файлы сохраняются между релизами
-- `deploy/.env.prod` — единственный источник секретов (chmod 600), объединяет bot- и backend-ключи
+- `deploy/.env.prod` — единственный источник секретов (chmod 600), объединяет bot- и backend-ключи; симлинк `.env → .env.prod` обеспечивает интерполяцию `${VAR}` в compose-файле
 - Сеть `deploy_default` — бот ходит в бэкенд по `http://backend:8000`, фронт проксирует `/api` в бэкенд
 - Публично:
-  - веб — `https://tezis.111.88.153.18.nip.io` (Caddy + nip.io + auto-TLS)
-  - бот — `@ai_presentations_test_bot`
-  - QR-коды сгенерированы: `docs/qr/qr-site.png`, `docs/qr/qr-bot.png`
+  - веб — `https://tezis.176.12.79.36.nip.io` (Caddy + nip.io + auto-TLS)
+  - бот — `@ai_presentations_test_bot` (polling напрямую в `api.telegram.org`)
+  - QR-коды: `docs/qr/qr-site.png`, `docs/qr/qr-bot.png` (старые, с IP `111.88.153.18` — пересобрать под новый домен перед публичным запуском)
 
 **Репозиторий:** https://github.com/SuvorovDV/zashitu (private)
 
 **Интегральный контракт бот↔бэкенд:**
 - Бот шлёт заголовок `X-Bot-Secret`, бэкенд проверяет `settings.BOT_INTERNAL_SECRET` (код в `backend/auth/dependencies.py`, `backend/payments/router.py`). Проверено: `GET /orders/` с правильным секретом → 200, без — 401.
-- `ALLOWED_HOSTS=tezis.111.88.153.18.nip.io,backend,localhost` (раньше был только публичный домен — бот падал с `400 Invalid host header`).
+- `ALLOWED_HOSTS=tezis.176.12.79.36.nip.io,backend,localhost` (раньше был только публичный домен — бот падал с `400 Invalid host header`).
 
-Инструкция — `docs/deploy-yandex.md`.
+Инструкция — `docs/deploy.md`.
 
 ---
 

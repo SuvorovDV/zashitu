@@ -39,7 +39,7 @@ zashitu/
 │   ├── docker-compose.prod.yml   ← полный прод-стек (bot + backend + worker + frontend + db + redis)
 │   ├── Caddyfile
 ├── docs/
-│   ├── deploy-yandex.md   ← старые заметки по деплою (Yandex Cloud, исторические)
+│   ├── deploy.md          ← рунбук по текущему проду (FirstVDS)
 │   └── web/               ← копии старых CLAUDE/PROGRESS/DECISIONS/ROADMAP/REVIEW от zashitu-web
 ├── storage/user_sessions.py  ← in-memory сессии бота
 ├── config.py              ← bot env: BOT_TOKEN, BACKEND_URL, TIERS (цены в Stars)
