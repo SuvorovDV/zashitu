@@ -11,8 +11,8 @@ export default {
       },
       colors: {
         accent: {
-          DEFAULT: '#C8FF3E',
-          ink:     '#0E0E0C',
+          DEFAULT: '#FF5C2A',
+          ink:     '#FFF8EE',
         },
         ink: {
           DEFAULT: '#F5F3EC',
@@ -29,19 +29,18 @@ export default {
         err:  '#FF6A5C',
         warn: '#FFC44D',
         // `brand` kept as alias for Step/UI components that still use bg-brand-*
-        // Tailwind classes. Scale is the lime-accent family so everything reads
-        // dark+lime without per-file rewrites.
+        // Tailwind classes. Scale matches the orange accent family.
         brand: {
-          50:  '#F9FFE3',
-          100: '#F2FFC5',
-          200: '#E4FF8C',
-          300: '#D8FF63',
-          400: '#C8FF3E',   // = --accent
-          500: '#B8E038',
-          600: '#9CC02E',
-          700: '#7BA024',
-          800: '#5A7418',
-          900: '#304010',
+          50:  '#FFF1EC',
+          100: '#FFDCCF',
+          200: '#FFB398',
+          300: '#FF8A63',
+          400: '#FF5C2A',   // = --accent
+          500: '#E8501E',
+          600: '#C64316',
+          700: '#A4370F',
+          800: '#7A270A',
+          900: '#4D1706',
         },
       },
     },

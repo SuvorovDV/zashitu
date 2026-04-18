@@ -14,9 +14,9 @@
     --ink-4: #5E5C51;
     --rule: rgba(245, 243, 236, 0.10);
     --rule-strong: rgba(245, 243, 236, 0.20);
-    --accent: #C8FF3E;
-    --accent-ink: #0E0E0C;
-    --accent-wash: rgba(200, 255, 62, 0.10);
+    --accent: #FF5C2A;
+    --accent-ink: #FFF8EE;
+    --accent-wash: rgba(255, 92, 42, 0.10);
     --err: #FF6A5C;
     --err-wash: rgba(255, 106, 92, 0.12);
     --warn: #FFC44D;

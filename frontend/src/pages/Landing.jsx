@@ -294,7 +294,7 @@ function SlideSpecimen({ activeIdx, onHover }) {
             style={{
               display: 'grid', gridTemplateColumns: '28px 1fr auto', gap: 12, alignItems: 'start',
               padding: '8px 10px', cursor: 'pointer', borderRadius: 6,
-              background: activeIdx === i ? 'rgba(200,255,62,0.35)' : 'transparent',
+              background: activeIdx === i ? 'rgba(255,92,42,0.35)' : 'transparent',
               transition: 'background .15s',
             }}
           >
