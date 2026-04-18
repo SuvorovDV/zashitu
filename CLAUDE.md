@@ -19,8 +19,10 @@
 1. Если заказ с `include_speech` и речь утверждена → `_derive_skeleton_from_speech` просит Claude предложить titles+layouts **под реальные секции речи** (не фиксированный академический пул).
 2. `_generate_with_claude` заполняет контент: markdown-таблицы из речи → `layout=table`, числовые ряды → `layout=chart`, цитаты → `layout=quote`.
 3. `_generate_images_for_slides` рисует SVG-декор в углу через Claude (если `OPENAI_API_KEY` пуст) и растеризует через `@resvg/resvg-js`.
-4. `pptxgen.js` собирает `.pptx` с межстрочным 1.3 + `paraSpaceBefore` 6 на всех bullet-списках.
+4. `pptxgen.js` собирает `.pptx` с межстрочным 1.3 + `paraSpaceBefore` 6 на всех bullet-списках. Stats-layout — 2×2 сетка при 4 числах, 1×3 при 3 (обновлено 2026-04-18). Chart — Calibri вместо Arial, data labels, толстая линия (обновлено 2026-04-18).
 5. `/files/download-speech/{id}` отдаёт речь с маркерами `=== Слайд N: title ===` (sonnet-4-6, кэш в `outputs/`).
+
+**Фронтенд (переписан 2026-04-18):** все страницы — в эстетике **dark #0E0E0C + lime accent #C8FF3E + Instrument Serif + маскот-«научрук»** из handoff-bundle Claude Design. Не путай с editorial warm-dark — тот вариант отменён. См. DECISIONS.md «Редизайн фронта под Claude Design bundle».
 
 ---
 
@@ -102,14 +104,16 @@ zashitu/
 | `deploy-bot-1` | `deploy-bot` (aiogram) | polling напрямую в api.telegram.org |
 
 **Публичные точки входа:**
-- Веб: `https://tezis.176.12.79.36.nip.io` (Caddy + nip.io-домен, авто-TLS)
+- Веб (текущий): `https://tezis.176.12.79.36.nip.io` (Caddy + nip.io-домен, авто-TLS)
+- Веб (планируется): `https://get-tezis.ru` — выбран 2026-04-18, Caddyfile уже готов в `9cdd0ad`. Ждём покупку домена на REG.RU и DNS A-записи. После propagation — обновить `deploy/.env.prod` (`ALLOWED_HOSTS`, `FRONTEND_URL`) и rebuild frontend+backend.
 - Бот: `@ai_presentations_test_bot` (Telegram)
 
-**Код на VM:** `~/zashitu/` (копия монорепы), запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`, env из `deploy/.env.prod` (chmod 600).
+**Код на VM:** `~/zashitu/` (копия монорепы через git — с 2026-04-18 `git pull` работает), запускается из `~/zashitu/deploy/docker-compose.prod.yml` с `-p deploy`, env из `deploy/.env.prod` (chmod 600).
 
 **Известные компромиссы (пока MVP):**
 - Stripe не сконфигурирован → чекаут 503 (работает Stars через бота, но `/payments/checkout` на вебе отключён)
 - `DEV_MODE=True` на проде — оставлено, т.к. нужна кнопка «симулировать оплату» в UI пока Stripe не подключён. Перед публичным запуском выключить.
+- Юрлицо не оформлено — в футере плейсхолдер «ООО «Тезис»» без ИНН/ОГРН.
 
 ---
 
@@ -129,6 +133,7 @@ zashitu/
 - **VM:** `root@176.12.79.36` (FirstVDS KVM, Алматы, Ubuntu 24.04, 2 ядра / 4 ГБ / 60 ГБ NVMe)
 - **Доменное имя сервера:** `erkobraxx.hlab.kz`
 - **Путь на VM:** `~/zashitu/`
-- **Прод-домен:** `https://tezis.176.12.79.36.nip.io`
+- **Прод-домен (текущий):** `https://tezis.176.12.79.36.nip.io`
+- **Прод-домен (планируется):** `https://get-tezis.ru` (после покупки на REG.RU + DNS A-записей)
 - **Старый сервер (Yandex Cloud):** `erkobrax@111.88.153.18` — выключен, можно удалять
 - **Compose project name:** `deploy` (контейнеры `deploy-*`, volumes `deploy_*`)

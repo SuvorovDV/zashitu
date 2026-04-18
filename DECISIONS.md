@@ -198,3 +198,82 @@
 - Caddy получил TLS от Let's Encrypt для `tezis.176.12.79.36.nip.io`
 - Пароль root сменён, SSH по ключу настроен
 - Старый сервер Yandex Cloud выключен
+
+---
+
+## Stats-карточки: 2×2 вместо 1×4 (2026-04-18)
+
+**Решение:** в `pptxgen.js::statsSlide` при 4 показателях — сетка 2×2 с широкими плоскими карточками (4.5×1.7 дюйма) вместо узкого ряда 1×4 (2.15×2.3). При 3 — остаётся 1×3, но карточки шире. Левая primary-полоса `0.08"` по краю каждой карточки, квадратные углы вместо скруглённых, left-aligned 36/42pt number, 13pt label сразу под ним.
+
+**Почему:** старый 1×4 layout с цифрами 48pt в узких карточках 2.15" страдал от автошринка PowerPoint на длинных значениях («14–16%», «40–50%»), а внутри карточки оставалось ~1.1" пустого места из-за valign center + маленькой подписи → выглядело недозагруженным. Бордер `CADCFC` на фоне `EEF3FB` был почти невидимым.
+
+**Почему не меньше статов:** Claude-промпт просит 3–4 числа, оставляем всё. 2×2 при 4 — правильное решение 16:9 канваса.
+
+**Цена:** две формы + доп. shape для accent-bar на карточку. Рендер по-прежнему <1 сек на весь deck. Коммит `8759218`.
+
+---
+
+## Chart-слайды: Calibri вместо Arial + data labels (2026-04-18)
+
+**Решение:** в `chartSlide` передаются `catAxisLabelFontFace: null`, `valAxisLabelFontFace: null`, `dataLabelFontFace: null` — это подавляет default pptxgenjs-поведение (вшивание `<a:latin typeface="Arial"/>` в chart XML), и PowerPoint рендерит подписи в системном дефолте (Calibri), совпадая с остальным текстом колоды. Плюс `showValue: true` (кроме pie), `lineSize: 3`, marker 8pt, `chartColors: [pal.primary]` для 1-серии, только горизонтальные gridlines `#E5E7EB`.
+
+**Почему:** pptxgen.js умолчально вшивает Arial в chart, в то время как addText-ы по всему deck рендерятся в Calibri — мелкий визуальный диссонанс на 9 графике. Одноцветная линия без data labels тоже просила проработки — без value-подписей цифры приходится читать по оси Y.
+
+---
+
+## Редизайн фронта под Claude Design bundle (2026-04-18)
+
+**Решение:** весь web-фронт переписан под эстетику **dark #0E0E0C + lime accent #C8FF3E + Instrument Serif + highlighter + маскот** из handoff-bundle'а от Anthropic Labs Claude Design (launched 2026-04-17 на claude.ai/design). Отказ от editorial warm-dark, который делался неделей ранее.
+
+**Почему:** editorial warm-dark был консервативным академ-стилем, который user на проверке счёл «неподходящим для основной аудитории — студенты и школьники». Claude Design во второй итерации брифа предложил dark+lime student-app направление (Notion/Linear энергетика, highlighter-штрихи, rotated-sticker-бейджи, pixel-маскот «научрук»). Это направление user одобрил, bundle прошёл полную доработку (landing + authenticated app — Dashboard/Wizard/Payment/Generation/NotFound), упакован в `.tar.gz` через `claude.ai/design`, затянут сюда через `WebFetch` + `unzip`.
+
+**Что сделано (11 коммитов, `142686e..9cdd0ad`):**
+
+| Коммит | Что |
+|---|---|
+| `142686e` | Design tokens — CSS vars в `index.css`, fonts в `index.html`, Tailwind `fontFamily`/`colors` |
+| `067eb32` | Landing — hero + upload + specimen с hover-highlight PDF↔slide + modes + process + features + testimonials + pricing + cta-strip + footer |
+| `bc197cb` | Navbar — lime T-лого, auth-aware (логиненный vs нет) |
+| `01dd753` | Login + Register — single-column форма с live-валидацией email/password/match |
+| `ea8dfae` | Dashboard — counters, табы (Все/В процессе/Готовые/Ошибки), OrderCard, empty-state с маскотом |
+| `ad0ebda` | Wizard shell — progress bar + 10 clickable dots + sticky summary panel; Step*-файлы оставлены |
+| `585b9d7` | Payment — order summary + upgrade options + pay column; preserved dev-simulate button |
+| `9235b0f` | Generation — state-machine (queued/drafting/speech_review/slides_review/done/failed) с маскотом в разных состояниях, markdown-подсветка «(с. N)» refs |
+| `856c1e0` | NotFound + bulk-sweep warm-dark hex в 15 компонентах (Step*/UI) + ремап `brand` палитры в Tailwind с янтарной в лаймовую шкалу |
+| `b0c580b` | Chore: убран плейсхолдер ИНН/ОГРН из футера |
+| `9cdd0ad` | `get-tezis.ru` добавлен в Caddyfile рядом с nip.io |
+
+**Что сохранено без изменений:** data layer полностью — TanStack Query хуки, Zustand `useWizardStore`, `authApi/ordersApi/paymentsApi/generationApi`, мутации approve/regenerate, `useGenerationStatus` polling с exponential backoff, `FileUpload`, `Modal`, `Toast`, `SlidePreview`. Только визуальный слой.
+
+**Step*-файлы (10 шагов wizard)** не переписаны один-в-один — они продолжают использовать Tailwind-классы `bg-brand-*`, но `brand` палитра в `tailwind.config.js` ремапнута с амбры (`#D97706`) на лайм-шкалу с `brand-400 = #C8FF3E`. Вся их разметка автоматически рендерится в новой теме. В future-sweep можно пройтись по ним с сырыми токенами — но это косметика.
+
+**Компонент `Mascot` (pixel-доодл «научрук» в очках)** вынесен в `components/ui/Mascot.jsx` с 4 состояниями (`idle` / `verify` / `happy` / `sad`). Используется в Dashboard empty-state, Generation (во всех стадиях), NotFound.
+
+---
+
+## Домен: get-tezis.ru (2026-04-18)
+
+**Решение:** покупаем `get-tezis.ru` на REG.RU (~590 ₽/год) как публичный домен Tezis. Сервер остаётся на FirstVDS Алматы — домен/сервер юридически не связаны, A-записи привязываются к любому IP.
+
+**Что рассмотрели и отвергли:**
+
+| Кандидат | Почему нет |
+|---|---|
+| `tezis.ru` | Занят private person'ом с 2003-09-21, оплачен до 2026-09-21. Выкуп через брокера неопределённая сумма ($500-5000+), не гарантирован. |
+| `tezis.kz` | Занят с 2021, CENTROHOST регистратор. |
+| `tezis.app` | Свободен на Porkbun (~$15/год), но требует международную карту. Англоязычный вайб хуже для русской ЦА — студент подсознательно считывает как «иностранный сервис». |
+| `tezis.pro / .studio / .ai / .io` | Все заняты. |
+| `zashitu.ru` | Свободен. Идейно красиво (совпадает с именем репо), но слово «защита» двусмысленно — может восприниматься как юридическое или охранное. |
+| `get-tezis.ru` | **Выбран.** Свободен, росс. картой, «get-» префикс часто ожидаем в edtech. |
+
+**Про 152-ФЗ (ПД граждан РФ на серверах за пределами РФ):** юрлицо пока не оформлено, физ.лицо-разработчик под нормативы не попадает до определённой выручки. Перед регистрацией ООО/ИП — час с налоговым консультантом.
+
+**Про юрлицо:** в футере пока стоит `© 2026 ООО «Тезис»` как плейсхолдер, ИНН/ОГРН убраны (`b0c580b`). Юрлицо будет зарегистрировано позже — возможно ТОО в РК (совпадает с юрисдикцией сервера) или ИП в РФ.
+
+---
+
+## Имя компании и архитектура проектов (2026-04-18)
+
+**Решение (вариант B):** каждый проект живёт под своим независимым доменом (`tezis.*`, будущие — свои). Имя компании — только в футере проекта («© {Year} {Company}»), НЕ является частью субдоменной иерархии. Вариант A (`{project}.{company}.com`) отложен до момента, когда будет больше одного серьёзного продукта.
+
+**Имя компании на GitHub:** открытый вопрос. Текущее «SuvKam Group» (акроним фамилий основателей — Суворов Денис Витальевич + Камышников Дмитрий) решено заменить на абстрактный бренд, потому что акроним из фамилий плохо масштабируется при добавлении/уходе партнёров. Кандидаты: `Paperloop`, `Tangent Labs`, `Margin`, `Arkhiv`, `Byline`. Окончательный выбор — в следующей сессии.
