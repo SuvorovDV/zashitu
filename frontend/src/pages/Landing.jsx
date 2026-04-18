@@ -73,7 +73,7 @@ function Hero({ ctaHref }) {
     <section id="top" style={{ paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative' }}>
         <div className="hide-mobile" style={{ position: 'absolute', top: -10, right: 40, transform: 'rotate(6deg)' }}>
-          <span className="sticker">★ не ЗА вас пишет — из ВАШЕЙ работы</span>
+          <span className="sticker">★ из ВАШЕЙ работы — или ВАШЕЙ речи</span>
         </div>
 
         <div className="kicker" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -92,18 +92,18 @@ function Hero({ ctaHref }) {
         <div className="split-hero" style={{ marginTop: 36, gap: 60, alignItems: 'start' }}>
           <div>
             <p style={{ fontSize: 19, lineHeight: 1.55, color: 'var(--ink-2)', maxWidth: 640, textWrap: 'pretty', margin: 0 }}>
-              Загружаешь PDF или DOCX — через 1–2 минуты получаешь <span style={{ color: 'var(--ink)', fontWeight: 500 }}>.pptx</span>, где каждый тезис со ссылкой на страницу источника. Редактируется в PowerPoint, Keynote и Google Slides.
+              Загрузи PDF/DOCX работы <em>или</em> вставь готовый текст выступления — через 1–2 минуты получаешь <span style={{ color: 'var(--ink)', fontWeight: 500 }}>.pptx</span>, где каждый тезис со ссылкой на источник. Редактируется в PowerPoint, Keynote, Google Slides.
             </p>
 
             <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <Link to={ctaHref} className="btn btn-primary">Загрузить работу <span className="arrow">→</span></Link>
+              <Link to={ctaHref} className="btn btn-primary">Начать <span className="arrow">→</span></Link>
               <a className="btn btn-text" href="#process">Как это работает <span className="arrow">→</span></a>
             </div>
 
             <div style={{ marginTop: 48, display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-              <Stat big="1–2 мин" small="от файла до .pptx" />
-              <Stat big={<>0 <span className="hand" style={{ color: 'var(--accent)', fontSize: 36 }}>придумано</span></>} small="всё из вашего текста" />
-              <Stat big="12–30" small="слайдов со ссылками" />
+              <Stat big="1–2 мин" small="от материала до .pptx" />
+              <Stat big={<>0 <span className="hand" style={{ color: 'var(--accent)', fontSize: 36 }}>придумано</span></>} small="по умолчанию — строго из вашего" />
+              <Stat big="10–30" small="слайдов со ссылками" />
             </div>
           </div>
 
@@ -409,8 +409,8 @@ function Modes() {
         <SectionHead
           num="02"
           kicker="Режимы"
-          title={<>Только слайды — или <span className="hl">со сценарием выступления</span>.</>}
-          lede="Нужно защититься за 5 минут? Сгенерируем .pptx. Нужна полноценная речь на 5–15 минут со всеми ссылками? Добавим текст выступления."
+          title={<>Слайды по работе — или по <span className="hl">вашей готовой речи</span>.</>}
+          lede="Хочешь только .pptx за 2 минуты? Сгенерируем. Нужен ещё сценарий речи на 5–20 минут? Сделаем. Уже есть готовый текст выступления? Соберём слайды ровно под него — не переписывая."
         />
 
         <div style={{ marginTop: 36, display: 'inline-flex', padding: 4, border: '1px solid var(--rule-strong)', borderRadius: 999 }}>
@@ -434,8 +434,8 @@ function Modes() {
             tag=".pptx"
             title="Только презентация"
             points={[
-              '12, 20 или 30 слайдов',
-              'ссылка на страницу на каждом слайде',
+              '10–30 слайдов под ваш объём',
+              'ссылка на страницу/источник на каждом слайде',
               'редактируется в PowerPoint / Keynote / Google Slides',
               'готово за 1–2 минуты',
             ]}
@@ -445,10 +445,10 @@ function Modes() {
             tag=".pptx + .md"
             title="Презентация + речь"
             points={[
-              'текст на 5–15 минут выступления',
-              'помечены паузы и переходы между слайдами',
-              'ссылки на страницы прямо в речи',
-              'можно вставить в суфлёр или распечатать',
+              'сгенерируем речь на 5–20 минут — или возьмём вашу готовую',
+              'если есть свой текст — собираем слайды ровно под него',
+              'ссылки на страницы прямо в речи и на слайдах',
+              'опционально: дополнить общими знаниями (с пометкой «общее знание»)',
             ]}
           />
         </div>
@@ -506,9 +506,9 @@ function ProcessDiagram({ step, active }) {
 }
 
 const PROCESS_STEPS = [
-  { n: '01', t: 'Загружаешь работу',   d: 'PDF или DOCX. До 200 страниц. Один файл.' },
-  { n: '02', t: 'ИИ собирает тезисы',  d: 'Только из твоего текста. Каждому тезису — страница источника.' },
-  { n: '03', t: 'Скачиваешь .pptx',    d: '12–30 слайдов. Открывается везде: PowerPoint, Keynote, Google Slides.' },
+  { n: '01', t: 'Даёшь материал',      d: 'PDF/DOCX работы, свой готовый текст речи, или то и другое вместе.' },
+  { n: '02', t: 'ИИ собирает тезисы',  d: 'По умолчанию — строго из твоего. По разрешению — дополнит общими знаниями, с пометкой.' },
+  { n: '03', t: 'Скачиваешь .pptx',    d: '10–30 слайдов со ссылками. Открывается в PowerPoint, Keynote, Google Slides.' },
 ]
 
 function Process() {
@@ -558,10 +558,10 @@ function Process() {
 /* ─── Features + Testimonials ────────────────────────────────────────────── */
 
 const FEATURES = [
-  { k: '01', t: 'Только ваш текст',    d: 'ИИ не добавляет факты и цифры извне. Если чего-то нет в источнике — этого не будет на слайде.' },
-  { k: '02', t: 'Ссылка на страницу',  d: 'Каждый тезис помечен «с. N». Научрук откроет исходник и проверит за 10 секунд.' },
-  { k: '03', t: 'Редактируемый .pptx', d: 'Не картинки, а настоящие слайды. Меняйте шрифты, цвета, порядок — всё останется.' },
-  { k: '04', t: '1–2 минуты',          d: 'От загрузки файла до готовой презентации. Без очередей и ожиданий.' },
+  { k: '01', t: 'Ваш материал — ваш дек', d: 'Работа (PDF/DOCX) или готовая речь. По умолчанию строго из неё, без чужих фактов.' },
+  { k: '02', t: 'Ссылка на каждую строку', d: 'Каждый тезис помечен «с. N» — научрук проверит за 10 секунд. При enhance — пометка «общее знание».' },
+  { k: '03', t: 'Редактируемый .pptx',  d: 'Не картинки, а настоящие слайды. Меняйте шрифты, цвета, порядок — всё останется.' },
+  { k: '04', t: '1–2 минуты',           d: 'От материала до готовой презентации. Без очередей и ожиданий.' },
 ]
 
 const TESTIMONIALS = [
