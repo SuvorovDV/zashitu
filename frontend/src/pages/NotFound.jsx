@@ -8,8 +8,8 @@ export default function NotFound() {
     <main>
       <section style={{ paddingTop: 80, paddingBottom: 120 }}>
         <div
-          className="wrap"
-          style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 60, alignItems: 'center' }}
+          className="wrap split-mascot-r"
+          style={{ gap: 60, alignItems: 'center' }}
         >
           <div>
             <div
@@ -57,7 +57,7 @@ export default function NotFound() {
           <div style={{ position: 'relative' }}>
             <Mascot size={180} state="verify" />
             <div
-              className="hand"
+              className="hand hide-mobile"
               style={{
                 position: 'absolute',
                 right: -20, top: -20,

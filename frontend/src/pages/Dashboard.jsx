@@ -152,11 +152,9 @@ function OrderActions({ order }) {
 function OrderCard({ order, onDelete }) {
   return (
     <div
-      className="card"
+      className="card grid-order"
       style={{
         padding: '20px 24px',
-        display: 'grid',
-        gridTemplateColumns: '1fr auto auto',
         gap: 24,
         alignItems: 'center',
       }}
@@ -309,11 +307,9 @@ export default function Dashboard() {
         <div className="wrap">
           {isEmpty ? (
             <div
-              className="card"
+              className="card grid-empty"
               style={{
                 padding: '56px 40px',
-                display: 'grid',
-                gridTemplateColumns: 'auto 1fr auto',
                 gap: 32,
                 alignItems: 'center',
               }}
@@ -321,7 +317,7 @@ export default function Dashboard() {
               <div style={{ position: 'relative' }}>
                 <Mascot size={110} state="happy" />
                 <div
-                  className="hand"
+                  className="hand hide-mobile"
                   style={{
                     position: 'absolute', right: -30, top: -8,
                     fontSize: 22, color: 'var(--accent)', transform: 'rotate(-4deg)',

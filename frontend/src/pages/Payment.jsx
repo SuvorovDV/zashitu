@@ -213,10 +213,8 @@ export default function Payment() {
           )}
 
           <div
-            style={{
-              marginTop: 32, display: 'grid', gap: 32, alignItems: 'start',
-              gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.1fr)',
-            }}
+            className="split-payment"
+            style={{ marginTop: 32, gap: 32, alignItems: 'start' }}
           >
             {/* ─── Left: order summary ─── */}
             <div className="card" style={{ padding: 28 }}>

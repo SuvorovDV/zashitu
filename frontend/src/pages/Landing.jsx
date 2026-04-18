@@ -20,7 +20,7 @@ function Stat({ big, small }) {
 function HeroDiagram() {
   return (
     <div style={{ position: 'relative', paddingTop: 4 }} aria-hidden>
-      <div style={{ position: 'absolute', right: -8, top: -40, zIndex: 2 }}>
+      <div className="hide-mobile" style={{ position: 'absolute', right: -8, top: -40, zIndex: 2 }}>
         <Mascot size={110} state="verify" />
         <div
           className="hand"
@@ -72,7 +72,7 @@ function Hero({ ctaHref }) {
   return (
     <section id="top" style={{ paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', top: -10, right: 40, transform: 'rotate(6deg)' }}>
+        <div className="hide-mobile" style={{ position: 'absolute', top: -10, right: 40, transform: 'rotate(6deg)' }}>
           <span className="sticker">★ не ЗА вас пишет — из ВАШЕЙ работы</span>
         </div>
 
@@ -89,7 +89,7 @@ function Hero({ ctaHref }) {
           презентацией, <span className="hl">которую не придумал ИИ</span>.
         </h1>
 
-        <div style={{ marginTop: 36, display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: 60, alignItems: 'start' }}>
+        <div className="split-hero" style={{ marginTop: 36, gap: 60, alignItems: 'start' }}>
           <div>
             <p style={{ fontSize: 19, lineHeight: 1.55, color: 'var(--ink-2)', maxWidth: 640, textWrap: 'pretty', margin: 0 }}>
               Загружаешь PDF или DOCX — через 1–2 минуты получаешь <span style={{ color: 'var(--ink)', fontWeight: 500 }}>.pptx</span>, где каждый тезис со ссылкой на страницу источника. Редактируется в PowerPoint, Keynote и Google Slides.
@@ -172,7 +172,7 @@ function UploadSection({ ctaHref }) {
           onDrop={(e) => { e.preventDefault(); setDrag(false); onFiles(e.dataTransfer.files) }}
         >
           {phase === 'idle' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 40, alignItems: 'center' }}>
+            <div className="grid-upload-idle" style={{ gap: 40, alignItems: 'center' }}>
               <div>
                 <div className="mono tiny muted">загрузка</div>
                 <div className="serif" style={{ fontSize: 36, marginTop: 10, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
@@ -194,7 +194,7 @@ function UploadSection({ ctaHref }) {
 
           {phase !== 'idle' && file && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 20, alignItems: 'center' }}>
+              <div className="grid-upload-file" style={{ gap: 20, alignItems: 'center' }}>
                 <div style={{ width: 46, height: 58, border: '1px solid var(--accent)', background: 'var(--accent-wash)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600, color: 'var(--accent)', borderRadius: 6 }}>
                   {/\.pdf$/i.test(file.name) ? 'PDF' : 'DOCX'}
                 </div>
@@ -237,7 +237,7 @@ function UploadSection({ ctaHref }) {
 
 function SectionHead({ num, kicker, title, lede }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 40, alignItems: 'baseline' }}>
+    <div className="grid-section-head" style={{ gap: 40, alignItems: 'baseline' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 150 }}>
         <div className="serif" style={{ fontSize: 44, color: 'var(--accent)', lineHeight: 0.9 }}>{num}</div>
         <div className="kicker">— {kicker}</div>
@@ -347,7 +347,7 @@ function Specimen() {
           lede="Каждый тезис на слайде помечен страницей источника. Наведите на пункт — и подсветится соответствующий абзац в PDF."
         />
 
-        <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: 'minmax(0, 0.85fr) minmax(0, 1.15fr)', gap: 32, alignItems: 'start' }}>
+        <div className="grid-specimen" style={{ marginTop: 48, gap: 32, alignItems: 'start' }}>
           <div>
             <div className="mono tiny muted" style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between' }}>
               <span>источник · diplom_ivanov.pdf</span>
@@ -428,7 +428,7 @@ function Modes() {
           </button>
         </div>
 
-        <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="cols-2" style={{ marginTop: 32, gap: 20 }}>
           <ModeCard
             active={mode === 'only'}
             tag=".pptx"
@@ -523,7 +523,7 @@ function Process() {
       <div className="wrap">
         <SectionHead num="03" kicker="Процесс" title={<>Три шага — от файла до <span className="hl">готовой защиты</span>.</>} />
 
-        <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div className="cols-3" style={{ marginTop: 48, gap: 16 }}>
           {PROCESS_STEPS.map((s, i) => (
             <button
               key={i}
@@ -591,7 +591,7 @@ function Features() {
       <div className="wrap">
         <SectionHead num="04" kicker="Источник — ваша работа" title={<>Почему Tezis — <span className="hl">не очередной</span> AI-генератор.</>} />
 
-        <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+        <div className="cols-2" style={{ marginTop: 48, gap: 16 }}>
           {FEATURES.map((it) => (
             <div key={it.k} className="card" style={{ padding: '28px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
@@ -605,7 +605,7 @@ function Features() {
 
         <div style={{ marginTop: 56 }}>
           <div className="kicker" style={{ marginBottom: 20 }}>— что говорят студенты</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div className="cols-3" style={{ gap: 16 }}>
             {TESTIMONIALS.map((q) => <Quote key={q.name} {...q} />)}
           </div>
         </div>
@@ -652,7 +652,7 @@ function Pricing({ ctaHref }) {
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '64px 0' }}><Spinner size="lg" /></div>
         ) : (
-          <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div className="cols-3" style={{ marginTop: 48, gap: 16 }}>
             {tiers && Object.values(tiers).map((t, i) => {
               const meta = TIER_META[t.id] || {}
               return (
@@ -721,7 +721,7 @@ function CtaStrip({ user }) {
   return (
     <section id="auth" style={{ paddingTop: 96, paddingBottom: 96, borderTop: '1px solid var(--rule)' }}>
       <div className="wrap">
-        <div className="card" style={{ padding: '40px 40px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'center' }}>
+        <div className="card split-mascot-r" style={{ padding: '40px 40px', gap: 32, alignItems: 'center' }}>
           <div>
             <div className="kicker" style={{ marginBottom: 10 }}>— начать сейчас</div>
             <div className="serif" style={{ fontSize: 'clamp(32px, 3.5vw, 44px)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
@@ -771,7 +771,7 @@ function Footer() {
   return (
     <footer style={{ borderTop: '1px solid var(--rule)', paddingTop: 56, paddingBottom: 40 }}>
       <div className="wrap">
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 40 }}>
+        <div className="grid-footer" style={{ gap: 40 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 28, height: 28, background: 'var(--accent)', color: 'var(--accent-ink)', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, fontFamily: 'var(--sans)', transform: 'rotate(-6deg)' }}>T</span>

@@ -117,7 +117,7 @@ function StageStepper({ stage, data }) {
 /* ─── Queued / Drafting ───────────────────────────────────────────────────── */
 function QueuedView({ title, sub }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 40, alignItems: 'center', paddingTop: 24 }}>
+    <div className="split-mascot-l" style={{ gap: 40, alignItems: 'center', paddingTop: 24 }}>
       <Mascot size={120} state="idle" />
       <div>
         <div className="kicker" style={{ marginBottom: 12 }}>статус · в очереди</div>
@@ -148,7 +148,7 @@ function QueuedView({ title, sub }) {
 function DraftingView({ title, sub }) {
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 40, alignItems: 'end', marginBottom: 28 }}>
+      <div className="split-mascot-r" style={{ gap: 40, alignItems: 'end', marginBottom: 28 }}>
         <div>
           <div className="kicker" style={{ marginBottom: 12 }}>статус · generating</div>
           <h1 className="serif" style={{ fontSize: 'clamp(40px, 5vw, 64px)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
@@ -161,7 +161,7 @@ function DraftingView({ title, sub }) {
         <div style={{ position: 'relative' }}>
           <Mascot size={110} state="verify" />
           <div
-            className="hand"
+            className="hand hide-mobile"
             style={{ position: 'absolute', left: -64, top: 4, fontSize: 20, color: 'var(--accent)', transform: 'rotate(-4deg)', width: 90, lineHeight: 1.1 }}
           >
             ищу с. 47…
@@ -205,7 +205,7 @@ function SpeechReview({ text, used, max, onApprove, onRegenerate, approving, reg
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: 24, alignItems: 'start' }}>
+      <div className="split-speech" style={{ gap: 24, alignItems: 'start' }}>
         <div className="card" style={{ overflow: 'hidden' }}>
           <div
             style={{
@@ -295,7 +295,7 @@ function SlidesReview({ plan, orderId, previewCount, used, max, onApprove, onReg
 /* ─── Done / Failed ───────────────────────────────────────────────────────── */
 function DoneView({ orderId, data, onNew }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 40, alignItems: 'center', paddingTop: 24 }}>
+    <div className="split-mascot-r" style={{ gap: 40, alignItems: 'center', paddingTop: 24 }}>
       <div>
         <div className="kicker" style={{ marginBottom: 12 }}>статус · completed</div>
         <h1 className="serif" style={{ fontSize: 'clamp(44px, 5.5vw, 72px)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -356,7 +356,7 @@ function SpeechDownloadButton({ orderId }) {
 
 function FailedView({ data, onBack }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 40, alignItems: 'center', paddingTop: 24 }}>
+    <div className="split-mascot-l" style={{ gap: 40, alignItems: 'center', paddingTop: 24 }}>
       <Mascot size={120} state="sad" />
       <div>
         <div className="kicker" style={{ marginBottom: 12, color: 'var(--err)' }}>статус · failed</div>

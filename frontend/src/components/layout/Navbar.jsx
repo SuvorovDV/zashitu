@@ -111,7 +111,7 @@ export default function Navbar() {
                 >
                   {(user.email || 'T').charAt(0).toUpperCase()}
                 </span>
-                {user.email}
+                <span className="hide-mobile">{user.email}</span>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={handleLogout}>Выйти</button>
             </>

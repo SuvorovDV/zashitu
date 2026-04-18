@@ -58,7 +58,7 @@ function SummaryPanel({ store, currentStep, onJump }) {
     { i: 10, k: 'Тариф',        v: TIER_LABEL[store.tier] || store.tier },
   ]
   return (
-    <aside style={{ position: 'sticky', top: 88, alignSelf: 'start' }}>
+    <aside className="sticky-desktop" style={{ position: 'sticky', top: 88, alignSelf: 'start' }}>
       <div className="card" style={{ padding: 22 }}>
         <div className="kicker" style={{ marginBottom: 14 }}>Сводка</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -208,7 +208,7 @@ export default function Wizard() {
 
       {/* Main grid: content + sticky summary */}
       <section style={{ paddingBottom: 96 }}>
-        <div className="wrap" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 40, alignItems: 'start' }}>
+        <div className="wrap split-wizard" style={{ gap: 40, alignItems: 'start' }}>
           <div>
             <div className="card" style={{ padding: 28, marginBottom: 20 }} ref={contentRef}>
               <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}><Spinner size="md" /></div>}>
