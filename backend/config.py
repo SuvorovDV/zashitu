@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     BOT_INTERNAL_SECRET: str = ""
     BOT_SERVICE_USER_EMAIL: str = "bot@zashitu.internal"
 
+    # NER-валидатор: объективный бэкстоп для галлюцинаций (города/компании/числа/ФИО).
+    # Сейчас — только логирование (без retry/reject). Можно выключить для регрессии.
+    NER_VALIDATE_ENABLED: bool = True
+
     class Config:
         env_file = ".env"
         extra = "ignore"

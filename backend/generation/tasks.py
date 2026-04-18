@@ -998,6 +998,33 @@ def _generate_with_claude(order, skeleton: list, tier_config: dict):
         contents.append({"bullets": ["—"]})
     contents = contents[: len(skeleton)]
 
+    # NER-валидатор — объективный бэкстоп: ловит сущности (города/компании/числа/годы),
+    # которые появились на слайдах, но отсутствуют в исходнике. Для фраз-уровневых
+    # галлюцинаций не работает (нужна семантика). Сейчас — только логирование, без retry;
+    # будем копить сигнал, прежде чем принимать решения на его основе.
+    hallucinated: list = []
+    if getattr(settings, "NER_VALIDATE_ENABLED", True):
+        try:
+            from generation.ner_validator import validate_slides, summarize
+            source_parts = []
+            if getattr(order, "speech_text", None):
+                source_parts.append(order.speech_text)
+            if getattr(order, "thesis", None):
+                source_parts.append(order.thesis)
+            if getattr(order, "topic", None):
+                source_parts.append(order.topic)
+            source_text = "\n\n".join(p for p in source_parts if p)
+            hallucinated = validate_slides(contents, source_text)
+            if hallucinated:
+                logger.warning(
+                    f"NER validator for order {getattr(order, 'id', '?')}: "
+                    f"{summarize(hallucinated)}"
+                )
+            else:
+                logger.info(f"NER validator for order {getattr(order, 'id', '?')}: clean")
+        except Exception as e:
+            logger.warning(f"NER validator crashed (ignored): {e}")
+
     return contents, {
         "system": system_prompt,
         "user": user_prompt,
@@ -1020,6 +1047,7 @@ def _generate_with_claude(order, skeleton: list, tier_config: dict):
             f"# img = openai.images.generate(prompt=slide['image_prompt'], size='1024x1024')"
         ),
         "raw_response": raw,
+        "hallucinated_entities": hallucinated,
     }
 
 
