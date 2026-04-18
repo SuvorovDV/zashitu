@@ -1,0 +1,19 @@
+{
+  "id": "bench-sparse-ai",
+  "topic": "Влияние искусственного интеллекта на рынок труда",
+  "direction": "Социология, экономика труда",
+  "work_type": "Обычный доклад",
+  "duration_minutes": 8,
+  "detail_level": "standard",
+  "thesis": "ИИ меняет рынок труда: одни профессии автоматизируются, другие создаются.",
+  "university": "НИУ ВШЭ",
+  "mode": "source_grounded",
+  "palette": "midnight_executive",
+  "tier": "standard",
+  "presenter_name": "Анна Морозова",
+  "presenter_role": "студентка",
+  "skip_tech_details": false,
+  "include_speech": true,
+  "speech_approved": true,
+  "custom_elements": null
+}
