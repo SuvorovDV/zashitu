@@ -1,0 +1,20 @@
+{
+  "id": "bench-smb-digital",
+  "topic": "Цифровизация малого и среднего бизнеса в России 2020–2024",
+  "direction": "Экономика, цифровая трансформация",
+  "work_type": "Курсовая",
+  "duration_minutes": 12,
+  "detail_level": "detailed",
+  "thesis": "В 2020–2024 годах МСП в России прошли системный переход от опциональных digital-инструментов к обязательной цифровой гигиене, при этом главным барьером дальнейшего роста стал кадровый голод, а не технологии.",
+  "university": "НИУ ВШЭ",
+  "mode": "source_grounded",
+  "palette": "ocean_gradient",
+  "tier": "standard",
+  "slides_count": 14,
+  "presenter_name": "Анна Морозова",
+  "presenter_role": "студентка 4 курса",
+  "skip_tech_details": false,
+  "include_speech": true,
+  "speech_approved": true,
+  "custom_elements": null
+}

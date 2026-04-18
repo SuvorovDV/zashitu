@@ -73,6 +73,20 @@ function cornerDecor(slide, s, pos) {
   });
 }
 
+// Ссылка на источник в подвале слайда — core USP продукта.
+// Рендерится на ВСЕХ content-слайдах (кроме section/quote — у quote своя attribution).
+function sourceFooter(prs, slide, s) {
+  if (!s.source_ref) return;
+  slide.addShape(prs.shapes.LINE, {
+    x: 0.5, y: 5.2, w: 9, h: 0, line: { color: "D1D5DB", width: 0.5 },
+  });
+  slide.addText(s.source_ref, t({
+    x: 0.5, y: 5.25, w: 9, h: 0.3,
+    fontFace: FONT_BODY, fontSize: 10, italic: true,
+    color: "9CA3AF", align: "left", margin: 0,
+  }));
+}
+
 function generatePresentation(plan) {
   const prs = new pptxgen();
   prs.layout = "LAYOUT_16x9";
@@ -199,11 +213,12 @@ function calloutSlide({ prs, pal }, s) {
   }));
   if (s.bullets && s.bullets.length) {
     slide.addText(bulletItems(s.bullets), t(Object.assign({
-      x: 0.5, y: 3.15, w: 9, h: 2.1,
+      x: 0.5, y: 3.15, w: 9, h: 1.85,
       fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
     }, BULLET_SPACING)));
   }
-  cornerDecor(slide, s, { x: 8.1, y: 3.9, w: 1.5, h: 1.5 });
+  cornerDecor(slide, s, { x: 8.1, y: 3.7, w: 1.5, h: 1.3 });
+  sourceFooter(prs, slide, s);
 }
 
 function twoColSlide({ prs, pal }, s) {
@@ -223,15 +238,16 @@ function twoColSlide({ prs, pal }, s) {
     }
     if (col.bullets && col.bullets.length) {
       slide.addText(bulletItems(col.bullets), t(Object.assign({
-        x, y: col.heading ? 1.65 : 1.1, w: 4.3, h: 3.6,
+        x, y: col.heading ? 1.65 : 1.1, w: 4.3, h: 3.35,
         fontFace: FONT_BODY, fontSize: 13, color: pal.text, align: "left",
       }, BULLET_SPACING)));
     }
   });
   slide.addShape(prs.shapes.LINE, {
-    x: 5.1, y: 1.1, w: 0, h: 4.1,
+    x: 5.1, y: 1.1, w: 0, h: 3.9,
     line: { color: "D1D5DB", width: 1 }
   });
+  sourceFooter(prs, slide, s);
 }
 
 function quoteSlide({ prs, pal }, s) {
@@ -283,7 +299,7 @@ function statsSlide({ prs, pal }, s) {
   const rows = useGrid22 ? 2 : 1;
 
   const areaY = s.intro ? 1.75 : 1.35;
-  const areaH = 5.25 - areaY;
+  const areaH = 5.0 - areaY;
   const colGap = 0.25, rowGap = 0.25;
   const availW = 9.2;
   const boxW = (availW - (cols - 1) * colGap) / cols;
@@ -327,6 +343,7 @@ function statsSlide({ prs, pal }, s) {
       color: pal.text, align: "left", valign: "top", margin: 0, wrap: true,
     }));
   });
+  sourceFooter(prs, slide, s);
 }
 
 function imageFullSlide({ prs, pal }, s) {
@@ -363,17 +380,17 @@ function imageSideSlide({ prs, pal }, s) {
 
   if (imageExists(s.image_path)) {
     slide.addImage({
-      path: s.image_path, x: imgX, y: 1.25, w: 4.3, h: 3.9,
-      sizing: { type: "cover", w: 4.3, h: 3.9 },
+      path: s.image_path, x: imgX, y: 1.25, w: 4.3, h: 3.65,
+      sizing: { type: "cover", w: 4.3, h: 3.65 },
     });
   } else {
     // Плейсхолдер, если картинка не сгенерировалась.
     slide.addShape(prs.shapes.ROUNDED_RECTANGLE, {
-      x: imgX, y: 1.25, w: 4.3, h: 3.9,
+      x: imgX, y: 1.25, w: 4.3, h: 3.65,
       fill: { color: pal.accent, transparency: 70 }, line: { color: pal.accent }, rectRadius: 0.1,
     });
     slide.addText("\u0418\u043b\u043b\u044e\u0441\u0442\u0440\u0430\u0446\u0438\u044f", t({
-      x: imgX, y: 3.0, w: 4.3, h: 0.5,
+      x: imgX, y: 2.9, w: 4.3, h: 0.5,
       fontFace: FONT_BODY, fontSize: 14, italic: true,
       color: pal.text, align: "center", margin: 0,
     }));
@@ -381,10 +398,11 @@ function imageSideSlide({ prs, pal }, s) {
 
   if (s.bullets && s.bullets.length) {
     slide.addText(bulletItems(s.bullets), t(Object.assign({
-      x: textX, y: 1.4, w: 4.3, h: 3.7,
+      x: textX, y: 1.4, w: 4.3, h: 3.45,
       fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
     }, BULLET_SPACING)));
   }
+  sourceFooter(prs, slide, s);
 }
 
 function defaultSlide({ prs, pal, slideNum, plan }, s) {
@@ -403,16 +421,7 @@ function defaultSlide({ prs, pal, slideNum, plan }, s) {
     }, BULLET_SPACING)));
   }
   cornerDecor(slide, s, { x: 8.1, y: 1.3, w: 1.5, h: 1.5 });
-  if (s.source_ref) {
-    slide.addShape(prs.shapes.LINE, {
-      x: 0.5, y: 5.2, w: 9, h: 0, line: { color: "D1D5DB", width: 0.5 }
-    });
-    slide.addText(s.source_ref, t({
-      x: 0.5, y: 5.25, w: 9, h: 0.3,
-      fontFace: FONT_BODY, fontSize: 10, italic: true,
-      color: "9CA3AF", align: "left", margin: 0,
-    }));
-  }
+  sourceFooter(prs, slide, s);
 }
 
 function tableSlide({ prs, pal }, s) {
@@ -457,7 +466,7 @@ function tableSlide({ prs, pal }, s) {
   const rowCount = tableData.length;
   const fontSize = rowCount <= 6 ? 14 : rowCount <= 10 ? 12 : 10;
   const tableY = s.intro ? 1.7 : 1.25;
-  const tableH = 5.3 - tableY;
+  const tableH = 5.0 - tableY;
 
   slide.addTable(tableData, {
     x: 0.4, y: tableY, w: 9.2, h: tableH,
@@ -466,6 +475,7 @@ function tableSlide({ prs, pal }, s) {
     colW: headers.length ? distributeColumns(headers.length, 9.2) : undefined,
     autoPage: false,
   });
+  sourceFooter(prs, slide, s);
 }
 
 function distributeColumns(count, totalW) {
@@ -512,7 +522,7 @@ function chartSlide({ prs, pal }, s) {
   }
 
   const chartY = s.intro ? 1.7 : 1.25;
-  const chartH = 5.3 - chartY;
+  const chartH = 5.0 - chartY;
 
   // 1 серия → один primary-цвет (не «радуга» из трёх оттенков на одну линию).
   const isSingle = seriesIn.length === 1;
@@ -551,6 +561,7 @@ function chartSlide({ prs, pal }, s) {
     showTitle: false,
     lang: LANG,
   });
+  sourceFooter(prs, slide, s);
 }
 
 function finalSlide(prs, plan, pal) {
