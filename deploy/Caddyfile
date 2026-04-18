@@ -2,8 +2,15 @@
     email erkobraxx@gmail.com
 }
 
-tezis.176.12.79.36.nip.io {
+# Рабочий публичный домен + старый nip.io оставляем на время перехода,
+# Caddy получит TLS-серты для каждого по HTTP-01 challenge от Let's Encrypt.
+# www-префикс тоже обрабатываем — редирект на apex внутри блока.
+get-tezis.ru, www.get-tezis.ru, tezis.176.12.79.36.nip.io {
     encode gzip zstd
+
+    # www → apex редирект (301), чтобы была одна каноническая ссылка.
+    @www host www.get-tezis.ru
+    redir @www https://get-tezis.ru{uri} 301
 
     # API → backend. handle'ы взаимоисключающие; совпадение по пути → только в этот handle.
     @api path /auth* /orders* /payments* /generation* /files* /health* /dev*
