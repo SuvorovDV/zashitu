@@ -781,8 +781,7 @@ function Footer() {
               Академический генератор презентаций. Каждый тезис — со ссылкой на страницу источника.
             </p>
             <div className="mono tiny muted" style={{ marginTop: 20 }}>
-              © 2026 ООО «Тезис»<br />
-              ИНН 7700000000 · ОГРН 1234567890123
+              © 2026 ООО «Тезис»
             </div>
           </div>
           <FooterCol title="Продукт" items={[['Пример', '#specimen'], ['Цены', '#pricing'], ['Telegram-бот', 'https://t.me/ai_presentations_test_bot']]} />
