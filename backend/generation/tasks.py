@@ -146,6 +146,7 @@ WORK_TYPE_TONE = {
     "Курсовая":         "академический, но более живой. Можно лёгкие эмоциональные акценты.",
     "Школьный реферат": "простой и понятный, подходит подростку-старшекласснику.",
     "Семинар":          "дискуссионный. Структура призвана вести к обсуждению.",
+    "Обычный доклад":   "нейтрально-деловой, информативный. Без академической чопорности, но и без product-demo.",
     "Личный проект":    "уверенная продуктовая, product-demo от первого лица. Живо, без канцелярита.",
 }
 
@@ -811,11 +812,20 @@ def _derive_skeleton_from_speech(order, n_slides: int, tier_config: dict) -> lis
 
 
 def _build_skeleton(order, tier_config) -> list:
-    # Если пользователь явно задал кол-во слайдов — оно переопределяет тариф
-    # (но зажато в диапазон [6, 40], чтобы не рвать layout/skeleton).
+    # Порядок приоритета определения кол-ва слайдов:
+    # 1. slides_count задан явно — используем его (зажато в [6, 40]).
+    # 2. Юзер выбрал длительность → считаем ~1.1 слайда в минуту
+    #    (стандартный темп академической защиты), зажато в [6, tier_max_slides].
+    # 3. Fallback — дефолт тарифа.
     user_count = getattr(order, "slides_count", None)
+    duration = getattr(order, "duration_minutes", None)
+    tier_max = tier_config.get("max_slides", tier_config.get("slides", 12))
+
     if user_count and isinstance(user_count, int) and user_count > 0:
         n_slides = max(6, min(40, user_count))
+    elif duration and isinstance(duration, int) and duration > 0:
+        # 1.1 sl/min: 10 мин → 11 слайдов, 15 → 17, 25 → 28 (отсекается tier_max).
+        n_slides = max(6, min(tier_max, round(duration * 1.1)))
     else:
         n_slides = tier_config.get("slides", 12)
 
@@ -1307,6 +1317,13 @@ def _speech_style(order) -> dict:
             "opener": f"Здравствуйте. Меня зовут {name}{role_suffix}. Расскажу про мой личный проект — «{{topic}}».",
             "closer": "На этом у меня всё. Готов ответить на вопросы.",
             "audience": "сокурсники и преподаватели",
+        }
+    if "доклад" in wt:
+        return {
+            "formality": "нейтрально-деловой, информативный, без академической чопорности",
+            "opener": f"Здравствуйте. Меня зовут {name}{role_suffix}. Тема доклада — «{{topic}}».",
+            "closer": "Спасибо за внимание.",
+            "audience": "слушатели доклада",
         }
     return {
         "formality": "нейтрально-академический",
