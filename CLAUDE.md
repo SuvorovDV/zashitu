@@ -15,14 +15,19 @@
 
 **Главное отличие от Gamma:** генерация **по работе студента** (`source_grounded`), каждый тезис с ссылкой на страницу. Никаких галлюцинаций.
 
-**Pipeline слайдов (включён с 2026-04-17):**
-1. Если заказ с `include_speech` и речь утверждена → `_derive_skeleton_from_speech` просит Claude предложить titles+layouts **под реальные секции речи** (не фиксированный академический пул).
-2. `_generate_with_claude` заполняет контент: markdown-таблицы из речи → `layout=table`, числовые ряды → `layout=chart`, цитаты → `layout=quote`.
-3. `_generate_images_for_slides` рисует SVG-декор в углу через Claude (если `OPENAI_API_KEY` пуст) и растеризует через `@resvg/resvg-js`.
-4. `pptxgen.js` собирает `.pptx` с межстрочным 1.3 + `paraSpaceBefore` 6 на всех bullet-списках. Stats-layout — 2×2 сетка при 4 числах, 1×3 при 3 (обновлено 2026-04-18). Chart — Calibri вместо Arial, data labels, толстая линия (обновлено 2026-04-18).
-5. `/files/download-speech/{id}` отдаёт речь с маркерами `=== Слайд N: title ===` (sonnet-4-6, кэш в `outputs/`).
+**Pipeline слайдов (итерирован 2026-04-17 → 2026-04-18):**
+1. **Scenario A (user has speech text):** если юзер в wizard Step 9 отметил «да, вставлю свою» — `user_speech_text` копируется в `speech_text`, `speech_approved=True` авто-выставляется, Claude-генерация речи пропускается. Сразу идём к skeleton+slides.
+2. **Scenario B (generate speech):** если `include_speech` и речь не предоставлена — `_generate_speech` вызывает Claude, юзер ревьюит/аппрувит.
+3. После аппрува речи (обоих сценариев) → `_derive_skeleton_from_speech` просит Claude предложить titles+layouts **под реальные секции речи** (не фиксированный пул).
+4. `_generate_with_claude` заполняет контент. **System prompt переработан (2026-04-18, коммит `24718fd`):** named entities pass (ФИО/города/компании/проценты), density floor (число или сущность на каждом слайде), fact integrity (ни одного числа вне источника в strict-режиме), layout decision tree (≥3 числа → stats, временной ряд → chart, ≥3 строк → table). 3 few-shot примера плотных слайдов в промте. `allow_enhance=True` (юзер разрешил) ослабляет fact-integrity — Claude может добавить общие знания, но маркер «общее знание» на практике использует редко (см. DECISIONS.md «Enhance-режим…»).
+5. **NER-валидатор** (`2ce92b1`) — regex-бэкстоп над content слайдов, грепает топонимы/аббревиатуры/числа/годы/ФИО, сверяет со стеммленным source через `_entity_present_in_source`. Warn-only, список `hallucinated_entities` пишется в `orders.generation_prompt` для наблюдаемости. Env-flag `NER_VALIDATE_ENABLED` (default True).
+6. `_generate_images_for_slides` — SVG-декор в углу через Claude, растеризация через `@resvg/resvg-js`.
+7. `pptxgen.js` собирает `.pptx` + footer `sourceFooter(prs, slide, s)` на ВСЕХ content-layouts (callout/two_col/stats/table/chart/image_side/default) — core USP «ссылка на источник». Content-area сжата с 5.25" до 5.0" чтобы зарезервировать место под footer.
+8. `/files/download-speech/{id}` отдаёт речь с маркерами `=== Слайд N: title ===` (sonnet-4-6, кэш в `outputs/`).
 
-**Фронтенд (переписан 2026-04-18):** все страницы — в эстетике **dark #0E0E0C + lime accent #C8FF3E + Instrument Serif + маскот-«научрук»** из handoff-bundle Claude Design. Не путай с editorial warm-dark — тот вариант отменён. См. DECISIONS.md «Редизайн фронта под Claude Design bundle».
+**Slide count derivation (`34aa4e5`):** `slides_count` явно → используется; иначе `duration_minutes × 1.1` с clamp к `tier.max_slides`. Раньше при выборе «по длительности» брался tier default (30 слайдов на premium) — юзер просил 10 мин, получал 32 слайда. Починено.
+
+**Фронтенд (редизайн 2026-04-18, orange 2026-04-18 вечер):** все страницы в эстетике **dark `#0E0E0C` + orange accent `#FF5C2A` + cream ink `#FFF8EE` + Instrument Serif + маскот «научрук»**. Изначально был lime `#C8FF3E` из handoff-bundle Claude Design, user заменил на orange после ревью. Wizard Step 9 переработан (`55d9f7f`): две оси выбора — «у меня есть речь / сгенерируйте» + «строго / разрешаю дополнить». Работу можно не загружать, можно вставить готовую речь, можно оба. Landing hero/process/modes/features переписаны под новые сценарии (`a49cb63`). Mobile-responsive сетка (`ca8e3a1`).
 
 ---
 

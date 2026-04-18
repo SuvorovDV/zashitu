@@ -6,20 +6,28 @@
 
 ## Следующий шаг
 
-**1. Купить `get-tezis.ru` и перевести фронт на публичный домен.** Выбран 2026-04-18 (см. DECISIONS.md). План — в REG.RU (~590 ₽/год):
-- Купить → настроить A-записи (`@` и `www` → `176.12.79.36`)
-- Дождаться DNS-propagation (5 мин – 2 часа)
-- На VM: обновить `deploy/.env.prod` (`ALLOWED_HOSTS`, `FRONTEND_URL`) + `git pull && docker compose -p deploy up -d --build frontend backend`
-- Caddyfile уже готов (`9cdd0ad`) — Caddy сам получит TLS-серт от Let's Encrypt
-- Проверить `https://get-tezis.ru` → 200, потом отдельным коммитом выпилить `tezis.176.12.79.36.nip.io`
+**1. Path A — визуал-полировщик (следующий спринт).** Не было сделано на этой итерации (Path C + B2 съели неделю). План из tech-lead агента:
+- Typography sweep: title 24pt → 32pt, eyebrow-mono 10pt uppercase, bullets -2pt
+- Новые layouts: `kpi_grid` (4 числа на border-top без карточек, Leva-style), `chart_callouts` (chart + 3 KPI под ним), `numbered_list`
+- Chart-аннотации: peak-маркер через `addShape(LINE)` + `addText` overlay после `addChart`
+- Тематичные палитры под content (coal+ember для индустриальных тем, paper-warm для гуманитарных)
+- Оценка: +15-20% к 6-мерной rubric. Неделя работы, ~$2-3 на бенчмарк.
 
-**2. E2E-тест веб-флоу в новом dark+lime редизайне.** После коммитов `142686e..9cdd0ad` все страницы перерисованы. Пройти пользовательский сценарий: регистрация → wizard 10 шагов → payment (dev-симуляция, Stripe не подключён) → generation state-machine → скачать .pptx. Убедиться, что ничего не отвалилось из-за рестайла.
+**2. Купить `get-tezis.ru` и перевести фронт на публичный домен.** Caddyfile готов (`9cdd0ad`):
+- REG.RU ~590 ₽/год → A-записи `@`+`www` → `176.12.79.36`
+- DNS propagation (5 мин – 2 часа)
+- На VM: `deploy/.env.prod` (`ALLOWED_HOSTS`, `FRONTEND_URL`) + `git pull && docker compose -p deploy up -d --build frontend backend`
+- Проверить `https://get-tezis.ru` → 200, потом коммитом выпилить nip.io-домен
 
-**3. Подключить Stripe.** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, выключить `DEV_MODE=True` на проде. Кнопка «симулировать оплату» на `/payment` показывается через `useDevMode()` хук, завязана на `/health` → `dev_mode`. После отключения dev — проверить, что кнопка исчезает.
+**3. Подключить Stripe.** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, выключить `DEV_MODE=True`. Кнопка «симулировать оплату» спрячется автоматически (завязана на `/health → dev_mode`).
 
-**4. Завести `contracts/shared.py`** — вынести туда ID тарифов (`basic/standard/premium`), ключи палитр (`midnight_executive` и т.д.), значения `work_type` (`ВКР/Курсовая/...`). Импортировать в `bot/config.py` и `backend/config.py`. Это устранит риск рассинхронизации ID между двумя Python-конфигами.
+**4. Наблюдение за NER-валидатором в проде.** Ждём ~10-20 реальных заказов. Если стабильно 0-2 `hallucinated_entities` на дек — ввести порог 3+ → retry со strict prompt. Если >5 — тюнинг regex/стоплистов.
 
-**5. Назвать компанию для футера и GitHub-орга.** Сейчас в футере `© 2026 ООО «Тезис»`, ИНН/ОГРН убраны (`b0c580b`) — фактическое юрлицо пока не зарегистрировано. Вариант B выбран (каждый проект со своим доменом, бренд компании только в подвале). Имя компании для GitHub org — открытый вопрос.
+**5. Завести `contracts/shared.py`** — ID тарифов, ключи палитр, `work_type`. Импортировать в `bot/config.py` и `backend/config.py`. Сейчас поддерживается вручную — новый «Обычный доклад» в frontend есть (`34aa4e5`), в боте ещё нет.
+
+**6. Расширенный eval-dataset** — 2-3 fixture разных доменов (гуманитарный/тех/короткий семинар) для устойчивости метрик при prompt-изменениях.
+
+**7. Назвать компанию для футера и GitHub-орга.** Футер — плейсхолдер. Имя — открытый вопрос.
 
 Локально без оплаты (бот):
 ```bash
@@ -187,6 +195,10 @@ DEBUG_SKIP_PAYMENT=true
 
 | Дата | Что сделано |
 |---|---|
+| 2026-04-18 (вечер, 2-я сессия) | **NER-валидатор как backstop для галлюцинаций** (`de5adf7`+`2ce92b1`). `backend/generation/ner_validator.py` — regex-экстрактор 4 типов сущностей (топонимы -ск/-цк/-ов, аббревиатуры, числа-с-единицами, годы, ФИО) + стемминг под русскую морфологию + phrase/token/synonyms-match. Подключён в `_generate_with_claude` warn-only, результат в `orders.generation_prompt.hallucinated_entities`. Env-flag `NER_VALIDATE_ENABLED` (default True). На корпусе: Path C rich — 0 FP, sparse Opus — 0 FP, синтетика — 4/7 подложенных поймано. **Валидация B2** (`bench/fixtures/sparse_ai/`): Sonnet и Opus оба не используют маркер «общее знание» даже в enhance-режиме (`975de70`). Opus в разы аккуратнее Sonnet на тонких источниках — рекомендуется для академической честности. UX-копия Step 9 смягчена, DECISIONS.md фиксирует ограничение. Потрачено $2.40 из $31. |
+| 2026-04-18 (вечер) | **B2: user-provided speech + enhance mode** (`34aa4e5`..`55d9f7f`..`a49cb63`). (1) Фикс bug slide_count: `_build_skeleton` теперь считает `duration_minutes × 1.1` при пустом `slides_count` (раньше падал в tier default 30 — юзер просил 10 мин, получал 32 слайда). (2) «Обычный доклад» — в enum work_types + `_speech_style`. (3) Новые Order-поля: `speech_is_user_provided`, `user_speech_text` (40k cap), `allow_enhance` (+migration 0009). (4) `generate_speech_task` short-circuit: если юзер принёс речь — копирует, `speech_approved=True`, переход к слайдам без API-вызова. (5) System prompt: `enhance_rule` + `fact_integrity_mode` 2 режима (strict/enhance), citations блок добавил `«общее знание»` как валидный source_ref в enhance-режиме. (6) Wizard Step 9 переписан — 2 тогла (речь: нет/да + textarea; дополнение: строго/разрешаю). (7) Landing copy обновлена под новый флоу (hero «работа ИЛИ речь», modes/process/features). |
+| 2026-04-18 (день) | **Path C — контент-gap vs Leva закрыт на 60-70%** (`24718fd`). Benchmark-harness `bench/` + `scripts/bench_gen.py` + fixture `smb_digital`. System prompt полностью переписан под редакторский voice: NER pass, density floor, fact integrity, anti-patterns, layout decision tree, citations как core USP, 3 few-shot примера. `SlideContent.source_ref` в Pydantic. Fallback `«источник: загруженная работа»` расширен с `default` до всех content-layouts. `pptxgen.js sourceFooter()` на callout/two_col/stats/table/chart/image_side/default (content-area сжата 5.25→5.0). Benchmark: 6-dim rubric 17.5 → 20.5/30 (+17%), source_ref coverage 4/14 → 12/12, named entities ~10 → 18+, quote с личной позицией автора. Агент-команда (3×: visual critic / content critic / tech lead) + 4 prompt-engineer агентов предоставили план. |
+| 2026-04-18 (утро) | **Orange accent + mobile responsive**. (1) Mobile сетки (`ca8e3a1`): утилитные классы `.cols-2`, `.cols-3`, `.split-*`, `.grid-*` в `index.css` с breakpoints 720/900px; inline `gridTemplateColumns` заменены. `.hide-mobile` для декоративных абсолютных элементов (sticker, hand-labels, маскот-hover). (2) Orange accent (`971d9d4`): `#C8FF3E` lime → `#FF5C2A` orange по всему фронту, `--accent-ink: #FFF8EE` (светлый cream для контраста), tailwind brand-палитра перевычислена. (3) Auto-deploy flow закреплён в памяти: git push → ssh VM → git pull → rebuild → up. |
 | 2026-04-18 | **Домен: `get-tezis.ru` выбран.** `tezis.ru` занят с 2003 года, `tezis.kz`/`.app`/`.pro`/`.studio`/`.ai`/`.io` заняты, `tezis.app` свободен на Porkbun (требует иностр. карту). Решение — `get-tezis.ru` через REG.RU (~590 ₽, росс. картой). Caddyfile обновлён в коммите `9cdd0ad` — обрабатывает `get-tezis.ru, www.get-tezis.ru, tezis.176.12.79.36.nip.io` в одном site-блоке, www → apex 301-редирект. Пользователь покупает домен и настраивает DNS A-записи; после DNS-propagation я обновляю `deploy/.env.prod` (`ALLOWED_HOSTS`, `FRONTEND_URL`) + rebuild frontend/backend. Nip.io-домен остаётся работать на время перехода, снесётся отдельным коммитом после стабилизации. |
 | 2026-04-18 | **Фронтенд полностью переписан под Claude Design bundle — dark+lime student-app эстетика** (11 коммитов, `142686e..9cdd0ad`). Отказ от warm-dark editorial в пользу эстетики от Anthropic Labs Claude Design (launched 2026-04-17), которая user одобрил после просмотра bundle. Фоновая палитра `#0E0E0C` + ink `#F5F3EC` + lime accent `#C8FF3E`. Шрифты: Instrument Serif (display), Inter Tight (body), JetBrains Mono (annotations), Caveat (hand). Каждая страница пересобрана: Landing (hero + upload + specimen с hover-highlight PDF↔slide + modes toggle + process + features+testimonials + pricing + cta-strip + footer), Navbar (lime T-logo, auth-aware), Login+Register (live-валидация), Dashboard (counters+tabs+OrderCard+empty-state с маскотом), Wizard shell (inline progress + sticky summary), Payment (order summary + upgrade + pay column), Generation (state-machine с маскотом + markdown-подсветка «(с. N)» refs), NotFound (404 с маскотом). Data layer (TanStack, Zustand, API-хуки) сохранён. Bulk-swap warm-dark hex-литералов в 15 компонентах. Легаси brand-палитра ремапнута в лайм-оттенки — Step*/UI-компоненты рендерятся в новой теме без per-file правок. Плейсхолдер ИНН/ОГРН в футере убран (`b0c580b`) — заполнит владелец. |
 | 2026-04-18 | **Stats-карточки и chart-слайды в pptxgen.js** (`8759218`). stats-layout переделан с 1×4 узкого ряда (48pt центр, автошринк длинных чисел, ice-blue border) на 2×2 сетку при 4 статах или 1×3 при 3 — широкие карточки, left-aligned 36/42pt value, 13pt label, левая primary-полоса вместо рамки, квадратные углы (editorial feel). chart-layout — fontFace: null (убирает hardcoded Arial → PowerPoint берёт Calibri), showValue: true, lineSize: 3, marker 8pt, один primary-цвет для 1-серии, только горизонтальные gridlines `#E5E7EB`. Сравнительные скриншоты в `.design-proposals/_stats-preview/`. |
