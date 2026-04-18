@@ -18,6 +18,11 @@ const wizardDefaults = {
   tier: 'basic',
   // Опциональный артефакт — Markdown-текст выступления вместе с .pptx.
   include_speech: false,
+  // Юзер принёс готовый текст речи — пайплайн пропускает Claude-генерацию.
+  speech_is_user_provided: false,
+  user_speech_text: '',
+  // Юзер разрешил дополнять факты из общих знаний (enhance mode).
+  allow_enhance: false,
   // Инфо о докладчике — используется в opener'е речи и в промте.
   presenter_name: '',
   presenter_role: '',
@@ -50,6 +55,8 @@ export const useWizardStore = create(
 
       getFormData: () => {
         const s = get()
+        // Если пользователь принёс свою речь — значит .md-артефакт точно нужен.
+        const includeSpeech = !!s.include_speech || !!s.speech_is_user_provided
         return {
           topic: s.topic,
           direction: s.direction || undefined,
@@ -64,7 +71,10 @@ export const useWizardStore = create(
           mode: s.mode || undefined,
           palette: s.palette || 'midnight_executive',
           tier: s.tier,
-          include_speech: !!s.include_speech,
+          include_speech: includeSpeech,
+          speech_is_user_provided: !!s.speech_is_user_provided,
+          user_speech_text: s.speech_is_user_provided ? (s.user_speech_text?.trim() || undefined) : undefined,
+          allow_enhance: !!s.allow_enhance,
           presenter_name: s.presenter_name?.trim() || undefined,
           presenter_role: s.presenter_role?.trim() || undefined,
           skip_tech_details: !!s.skip_tech_details,
@@ -90,6 +100,9 @@ export const useWizardStore = create(
         palette: state.palette,
         tier: state.tier,
         include_speech: state.include_speech,
+        speech_is_user_provided: state.speech_is_user_provided,
+        user_speech_text: state.user_speech_text,
+        allow_enhance: state.allow_enhance,
         presenter_name: state.presenter_name,
         presenter_role: state.presenter_role,
         skip_tech_details: state.skip_tech_details,

@@ -61,6 +61,9 @@ async def create_order(db: AsyncSession, user_id: str, data: dict) -> Order:
         presenter_name=(data.get("presenter_name") or None),
         presenter_role=(data.get("presenter_role") or None),
         skip_tech_details=bool(data.get("skip_tech_details", False)),
+        speech_is_user_provided=bool(data.get("speech_is_user_provided", False)),
+        user_speech_text=((data.get("user_speech_text") or "")[:40000] or None),
+        allow_enhance=bool(data.get("allow_enhance", False)),
         status=OrderStatus.pending.value,
     )
     return await OrdersRepository(db).add(order)

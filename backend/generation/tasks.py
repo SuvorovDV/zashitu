@@ -196,6 +196,23 @@ def generate_speech_task(self, order_id: str):
         order.status = OrderStatus.generating.value
         db.commit()
 
+        # Короткое замыкание: юзер уже принёс готовый текст речи → пропускаем Claude-генерацию,
+        # копируем его текст как финальный и сразу авто-апрувим. Экономит $ и уважает намерение юзера.
+        if getattr(order, "speech_is_user_provided", False) and (order.user_speech_text or "").strip():
+            order.speech_text = order.user_speech_text.strip()[:40000]
+            order.speech_prompt = json.dumps(
+                {"mode": "user_provided", "chars": len(order.speech_text), "raw_response": None},
+                ensure_ascii=False, indent=2,
+            )
+            order.speech_revision_note = None
+            order.speech_approved = True
+            order.status = OrderStatus.generating.value
+            db.commit()
+            logger.info(f"Order {order_id} speech copied from user input ({len(order.speech_text)} chars), skipping Claude")
+            # Запускаем следующий этап — слайды — сразу, не ждём approval UI.
+            generate_slides_task.delay(order_id)
+            return
+
         tier_config = TIERS.get(order.tier, TIERS["basic"])
         text, prompt_record = _generate_speech(order, tier_config)
 
@@ -1104,6 +1121,33 @@ def _build_slides_prompts(order, skeleton: list):
         else "Режим no_template: source_ref не требуется. Полная свобода формулировок."
     )
 
+    # Enhance-режим: юзер разрешил Claude дополнять фактами из общих знаний.
+    # USP сохраняется через маркировку source_ref = «общее знание» на enhance-слайдах.
+    allow_enhance = bool(getattr(order, "allow_enhance", False))
+    if allow_enhance:
+        enhance_rule = (
+            "Разрешено дополнять контент фактами из общих знаний (статистика, исторический контекст, "
+            "общеизвестные факты). НО каждый такой слайд ДОЛЖЕН иметь source_ref = «общее знание», "
+            "чтобы читатель понимал, какие тезисы основаны на работе, а какие — нет. "
+            "Слайды на основе РЕЧИ/источника по-прежнему должны иметь source_ref формата «с. N» "
+            "или «<источник>, с. N»."
+        )
+        fact_integrity_mode = (
+            "Fact integrity (enhance-режим): цифры/имена/даты из РЕЧИ — воспроизводи точно. "
+            "На enhance-слайдах (source_ref = «общее знание») можешь добавлять общеизвестные "
+            "факты с консервативной точностью: диапазоны предпочтительнее точных цифр, без "
+            "выдуманных ФИО и специфических процентов без опоры. Смешивание «с. N» и «общее знание» "
+            "в одном буллете ЗАПРЕЩЕНО — всегда один source_ref на весь слайд."
+        )
+    else:
+        enhance_rule = (
+            "СТРОГО из РЕЧИ: никаких фактов, цифр, имён, дат — не встречающихся в РЕЧИ."
+        )
+        fact_integrity_mode = (
+            "Fact integrity (строгий режим): ни одного числа/имени/даты вне РЕЧИ. "
+            "Каждая named entity ДОЛЖНА встречаться в РЕЧИ буквально или как морфологическая форма."
+        )
+
     tech_gate = ""
     if order.skip_tech_details:
         tech_gate = (
@@ -1135,12 +1179,15 @@ def _build_slides_prompts(order, skeleton: list):
 (в) прямая цитата из РЕЧИ.
 Слайд без (а)/(б)/(в) — вода. Перепиши или замени на layout=section.
 
-### Fact integrity (антигаллюцинации)
-- Ни одного числа/имени/даты вне РЕЧИ. Каждая named entity ДОЛЖНА встречаться в РЕЧИ буквально или как морфологическая форма («Прокопьевска» ↔ «Прокопьевск»).
+### Fact integrity
+{fact_integrity_mode}
 - Если в РЕЧИ есть диапазон («40–50 %») — передавай диапазон, не усредняй.
 - Единицы измерения — только те, что в РЕЧИ. Не подставляй «руб.», «%», «тыс.», если их там нет.
 - Сомневаешься в факте — не вставляй вообще. Лучше буллет меньше, чем выдуманный.
 - Если источник беден на сущности (теоретическая работа) — обобщение уместно, не натягивай конкретику насильно.
+
+### Режим наполнения
+{enhance_rule}
 
 ### Anti-patterns (НЕ пиши на слайдах)
 - Присказки докладчика: «Как мы видим», «Давайте рассмотрим», «В заключение», «Перейдём к…», «Спасибо за внимание».
@@ -1174,6 +1221,7 @@ def _build_slides_prompts(order, skeleton: list):
 - `«Росстат, 2023, с. 12»` — цитируется внешний источник из РЕЧИ (c годом публикации)
 - `«Раздел "<название>"»` — раздел известен, страница нет
 - `«источник: загруженная работа»` — fallback, только если страница реально не установлена
+- `«общее знание»` — ТОЛЬКО в enhance-режиме (см. «Режим наполнения» выше), для слайдов на основе общих знаний
 
 Запрещено: «≈ с. 10», «примерно с. 40», «см. материалы», «источники см. в приложении».
 Длина source_ref ≤80 симв, без точки в конце.

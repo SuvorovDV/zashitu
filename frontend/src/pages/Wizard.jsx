@@ -30,7 +30,7 @@ const STEP_NAMES = [
   'Тезис',
   'Университет',
   'Элементы',
-  'Режим',
+  'Материалы',
   'Палитра',
 ]
 
@@ -42,9 +42,14 @@ function canProceed(step, store) {
 }
 
 function SummaryPanel({ store, currentStep, onJump }) {
+  const speechMaterialSummary = !store.include_speech
+    ? 'только слайды'
+    : store.speech_is_user_provided
+      ? `+ ваша речь (${(store.user_speech_text || '').length.toLocaleString('ru-RU')} симв.)`
+      : '+ сгенерируем речь'
   const rows = [
     { i: 1,  k: 'Тема',         v: store.topic || '—' },
-    { i: 1,  k: 'Режим',        v: store.include_speech ? '+ речь' : 'только слайды' },
+    { i: 1,  k: 'Формат',       v: store.include_speech ? '+ речь' : 'только слайды' },
     { i: 2,  k: 'Направление',  v: store.direction || '—' },
     { i: 3,  k: 'Тип работы',   v: store.work_type || '—' },
     { i: 4,  k: 'Объём',        v: store.slides_count
@@ -54,6 +59,8 @@ function SummaryPanel({ store, currentStep, onJump }) {
     { i: 6,  k: 'Тезис',        v: store.thesis ? store.thesis.slice(0, 60) + (store.thesis.length > 60 ? '…' : '') : '—' },
     { i: 7,  k: 'Университет',  v: store.university || '—' },
     { i: 8,  k: 'Обязательно',  v: (store.custom_elements?.trim() || store.required_elements?.length) ? 'есть' : '—' },
+    { i: 9,  k: 'Речь',         v: speechMaterialSummary },
+    { i: 9,  k: 'Наполнение',   v: store.allow_enhance ? '+ общие знания' : 'строго по источнику' },
     { i: 10, k: 'Палитра',      v: store.palette || 'midnight_executive' },
     { i: 10, k: 'Тариф',        v: TIER_LABEL[store.tier] || store.tier },
   ]

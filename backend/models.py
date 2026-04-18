@@ -100,6 +100,14 @@ class Order(Base):
     # Включает второй артефакт — текст выступления в Markdown.
     include_speech: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     speech_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Юзер принёс готовый текст речи — пайплайн пропускает Claude-генерацию
+    # и копирует user_speech_text в speech_text с speech_approved=True.
+    speech_is_user_provided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    user_speech_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Юзер разрешил Claude дополнять фактами из общих знаний (не только из источника).
+    # При allow_enhance=True source_ref помечается «общее знание» на соответствующих слайдах.
+    # USP-compromise, см. DECISIONS.md «Enhance mode».
+    allow_enhance: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Итеративный approval-флоу для include_speech=True:
     # speech сначала, потом slides. Каждая фаза — N правок перед approve.

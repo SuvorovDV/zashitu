@@ -29,6 +29,9 @@ class CreateOrderRequest(BaseModel):
     presenter_name: Optional[str] = None
     presenter_role: Optional[str] = None
     skip_tech_details: bool = False
+    speech_is_user_provided: bool = False
+    user_speech_text: Optional[str] = None
+    allow_enhance: bool = False
 
 
 class OrderResponse(BaseModel):
