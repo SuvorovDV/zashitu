@@ -8,7 +8,9 @@ from models import Order, OrderStatus
 from orders.repository import OrdersRepository
 
 
-def _validate_against_tier(tier_id: str, slides_count, duration_minutes, detail_level=None) -> None:
+def _validate_against_tier(
+    tier_id: str, slides_count, duration_minutes, detail_level=None, work_type=None,
+) -> None:
     """Проверяем, что запрошенный объём помещается в лимиты тарифа."""
     cfg = TIERS.get(tier_id)
     if not cfg:
@@ -26,6 +28,12 @@ def _validate_against_tier(tier_id: str, slides_count, duration_minutes, detail_
     # Подробный уровень детализации доступен только для Премиума.
     if detail_level == "detailed" and tier_id != "premium":
         raise ValueError("Уровень «Подробный» доступен только для тарифа «Премиум»")
+    # Премиум-тариф (Opus 4.7, 30 слайдов, 45 мин) не имеет смысла для школьного реферата:
+    # стандартного объёма хватает с запасом, дороже модель — overkill для школы.
+    if (work_type or "").strip() == "Школьный реферат" and tier_id == "premium":
+        raise ValueError(
+            "Тариф «Премиум» не доступен для школьного реферата — выберите Базовый или Стандарт"
+        )
 
 
 async def create_order(db: AsyncSession, user_id: str, data: dict) -> Order:
@@ -39,6 +47,7 @@ async def create_order(db: AsyncSession, user_id: str, data: dict) -> Order:
         data.get("slides_count"),
         data.get("duration_minutes"),
         data.get("detail_level"),
+        data.get("work_type"),
     )
 
     order = Order(
@@ -100,7 +109,7 @@ async def update_order_tier(db: AsyncSession, order_id: str, user_id: str, tier:
         return None
     if order.status != OrderStatus.pending.value:
         raise ValueError("Cannot change tier after payment")
-    _validate_against_tier(tier, order.slides_count, order.duration_minutes, order.detail_level)
+    _validate_against_tier(tier, order.slides_count, order.duration_minutes, order.detail_level, order.work_type)
     order.tier = tier
     return await repo.commit_refresh(order)
 

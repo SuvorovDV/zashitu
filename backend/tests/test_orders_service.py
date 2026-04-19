@@ -53,6 +53,42 @@ async def test_create_order_default_tier(db):
     assert order.tier == "basic"
 
 
+@pytest.mark.asyncio
+async def test_create_order_school_essay_premium_rejected(db):
+    """Школьный реферат + premium → ValueError. Premium = opus + 30 слайдов = overkill для школы."""
+    user = await register_user(db, "sep@test.com", "pass")
+    with pytest.raises(ValueError, match="Премиум.*не доступен для школьного реферата"):
+        await create_order(db, user.id, {
+            "topic": "Динозавры",
+            "work_type": "Школьный реферат",
+            "tier": "premium",
+        })
+
+
+@pytest.mark.asyncio
+async def test_create_order_school_essay_basic_ok(db):
+    user = await register_user(db, "seb@test.com", "pass")
+    order = await create_order(db, user.id, {
+        "topic": "Динозавры",
+        "work_type": "Школьный реферат",
+        "tier": "basic",
+    })
+    assert order.tier == "basic"
+    assert order.work_type == "Школьный реферат"
+
+
+@pytest.mark.asyncio
+async def test_create_order_general_report_premium_ok(db):
+    """Обычный доклад + premium — разрешён (для длинных конференционных докладов)."""
+    user = await register_user(db, "grp@test.com", "pass")
+    order = await create_order(db, user.id, {
+        "topic": "Тренды EdTech 2025",
+        "work_type": "Обычный доклад",
+        "tier": "premium",
+    })
+    assert order.tier == "premium"
+
+
 # ── get_order / get_order_by_id ───────────────────────────────────────────────
 
 @pytest.mark.asyncio
