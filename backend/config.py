@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     # Сейчас — только логирование (без retry/reject). Можно выключить для регрессии.
     NER_VALIDATE_ENABLED: bool = True
 
+    # Web search для спич-генерации в no-source режиме (юзер не загрузил работу).
+    # Когда True и нет UploadedFile → Claude дёргает web_search_20250305 (server-side),
+    # ищет 2-3 авторитетных источника по теме, цитирует автора/год в речи.
+    # Если PDF есть — флаг игнорируется (источник студента приоритетнее веба).
+    WEB_SEARCH_ENABLED: bool = True
+    # Сколько раз Claude может вызвать web_search за один запрос. Anthropic тарифицирует
+    # $10/1000 поисков. 3 хватает для обзорной речи; задирать > 5 — растёт латенси.
+    WEB_SEARCH_MAX_USES: int = 3
+
     class Config:
         env_file = ".env"
         extra = "ignore"

@@ -214,7 +214,17 @@ def generate_speech_task(self, order_id: str):
             return
 
         tier_config = TIERS.get(order.tier, TIERS["basic"])
-        text, prompt_record = _generate_speech(order, tier_config)
+
+        # Источником фактов для речи может быть либо PDF/DOCX студента, либо web search.
+        # Если работа загружена — речь пишется «из весов» (PDF читается только на этапе слайдов,
+        # это отдельная история). Если работы НЕТ — включаем web_search, чтобы речь
+        # опиралась на свежие авторитетные источники, а не на эрудицию модели.
+        from models import UploadedFile
+        has_source = (
+            db.query(UploadedFile).filter(UploadedFile.order_id == order_id).first() is not None
+        )
+
+        text, prompt_record = _generate_speech(order, tier_config, has_source=has_source)
 
         order.speech_text = text
         order.speech_prompt = json.dumps(prompt_record, ensure_ascii=False, indent=2)
@@ -1425,12 +1435,17 @@ def _speech_style(order) -> dict:
     }
 
 
-def _generate_speech(order, tier_config):
-    """Возвращает (markdown_text, prompt_record_dict)."""
+def _generate_speech(order, tier_config, has_source: bool = True):
+    """Возвращает (markdown_text, prompt_record_dict).
+
+    has_source=False → юзер не загрузил PDF/DOCX; включаем web_search (если разрешён
+    в settings), чтобы Claude нашёл реальные источники по теме, а не сочинял из весов.
+    """
     duration = order.duration_minutes or 10
+    use_web_search = bool(settings.WEB_SEARCH_ENABLED) and not has_source
     # Всегда собираем prompt_record — даже без API-ключа. Это нужно, чтобы
     # пользователь мог скопировать его и прогнать в Claude локально.
-    system_prompt, user_prompt = _build_speech_prompts(order, duration)
+    system_prompt, user_prompt = _build_speech_prompts(order, duration, use_web_search=use_web_search)
     model = tier_config.get("model", "claude-sonnet-4-6")
 
     record = {
@@ -1439,6 +1454,8 @@ def _generate_speech(order, tier_config):
         "model": model,
         "max_tokens": 16000,
         "temperature": 0.7,
+        "has_source": has_source,
+        "web_search_enabled": use_web_search,
         "pseudocode": (
             f"import anthropic\n"
             f"client = anthropic.Anthropic()\n"
@@ -1448,16 +1465,26 @@ def _generate_speech(order, tier_config):
             f"    temperature=0.7,\n"
             f"    system=<system>,\n"
             f"    messages=[{{\"role\": \"user\", \"content\": <user>}}],\n"
-            f")\n"
-            f"text = resp.content[0].text.strip()"
+            + (
+                f"    tools=[{{\"type\": \"web_search_20250305\", \"name\": \"web_search\", "
+                f"\"max_uses\": {settings.WEB_SEARCH_MAX_USES}}}],\n"
+                if use_web_search else ""
+            )
+            + f")\n"
+            f"text = ''.join(b.text for b in resp.content if b.type == 'text').strip()"
         ),
         "raw_response": None,
+        "search_queries": [],
     }
 
     if settings.ANTHROPIC_API_KEY:
         try:
-            text, raw = _speech_with_claude(order, tier_config, duration, system_prompt, user_prompt)
+            text, raw, search_queries = _speech_with_claude(
+                order, tier_config, duration, system_prompt, user_prompt,
+                use_web_search=use_web_search,
+            )
             record["raw_response"] = raw
+            record["search_queries"] = search_queries
             return text, record
         except Exception as e:
             logger.warning(f"Claude speech failed ({e}), falling back to placeholder")
@@ -1466,9 +1493,13 @@ def _generate_speech(order, tier_config):
     return text, record
 
 
-def _build_speech_prompts(order, duration: int):
+def _build_speech_prompts(order, duration: int, use_web_search: bool = False):
     """Собирает system+user промты для текста выступления — единая точка для
-    реального запроса и технической панели («скопировал, запустил локально»)."""
+    реального запроса и технической панели («скопировал, запустил локально»).
+
+    use_web_search=True → юзер не загрузил работу; добавляем инструкцию найти
+    реальные источники через web_search и цитировать их в речи.
+    """
     style = _speech_style(order)
 
     system_prompt = (
@@ -1479,6 +1510,24 @@ def _build_speech_prompts(order, duration: int):
         "Длительность указана пользователем — рассчитывай ~120 слов в минуту. "
         "Не используй «уважаемая комиссия», если тип работы не ВКР/диплом."
     )
+
+    if use_web_search:
+        system_prompt += (
+            "\n\n=== ВАЖНО: НЕТ ЗАГРУЖЕННОЙ РАБОТЫ ===\n"
+            "У пользователя нет PDF/DOCX с исходной работой — ты пишешь речь с нуля по теме.\n"
+            "Чтобы избежать выдуманных фактов:\n"
+            "1. Перед написанием сделай 2-3 поиска через web_search на русском по теме "
+            "(статистика, актуальные исследования, имена учёных, отраслевые отчёты, "
+            "данные министерств/Росстата/ВОЗ/ОЭСР — что релевантно).\n"
+            "2. Используй ТОЛЬКО факты из найденных источников. Числа, годы, ФИО, "
+            "названия организаций — всё должно быть подтверждено поиском.\n"
+            "3. Цитируй источник прямо в тексте речи в скобках: (Иванов, 2024), "
+            "(Минобрнауки РФ, 2025), (ВЦИОМ, 2024).\n"
+            "4. Если по узкому аспекту нет надёжных данных — скажи общими словами без "
+            "конкретики, не выдумывай. Лучше «по оценкам экспертов» без цифры, чем "
+            "выдуманная цифра.\n"
+            "5. Не вставляй URL в текст речи — только автор/организация и год."
+        )
 
     if order.skip_tech_details:
         system_prompt += (
@@ -1529,22 +1578,60 @@ def _build_speech_prompts(order, duration: int):
     return system_prompt, user_prompt
 
 
-def _speech_with_claude(order, tier_config, duration: int, system_prompt: str, user_prompt: str):
+def _speech_with_claude(
+    order, tier_config, duration: int, system_prompt: str, user_prompt: str,
+    use_web_search: bool = False,
+):
+    """Возвращает (text, raw_text, search_queries).
+
+    При use_web_search=True подключаем server-side web_search_20250305 — Anthropic
+    сам гоняет цикл поиска и возвращает финальный ответ. Из response.content надо
+    забрать ТОЛЬКО text-блоки (там же ещё server_tool_use и web_search_tool_result).
+    """
     client = _get_anthropic_client()
     _model = tier_config.get("model", "claude-sonnet-4-6")
-    response = client.messages.create(**_messages_kwargs(
+
+    kwargs = dict(
         model=_model,
         max_tokens=16000,
         temperature=0.7,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
-    ))
+    )
+    if use_web_search:
+        kwargs["tools"] = [{
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": settings.WEB_SEARCH_MAX_USES,
+        }]
+
+    response = client.messages.create(**_messages_kwargs(**kwargs))
+
     if response.stop_reason == "max_tokens":
         logger.warning(
             f"Speech for order {order.id} hit max_tokens cap (duration={duration}m) — output truncated"
         )
-    raw = response.content[0].text.strip()
-    return raw, raw
+
+    # Когда тулзы НЕ использовались — content[0].text как раньше. С тулзами content
+    # содержит несколько блоков: server_tool_use (запросы поиска), web_search_tool_result
+    # (результаты), text (финальный ответ). Собираем все text-блоки в порядке.
+    text_parts = []
+    search_queries = []
+    for block in response.content:
+        block_type = getattr(block, "type", None)
+        if block_type == "text":
+            text_parts.append(block.text)
+        elif block_type == "server_tool_use" and getattr(block, "name", None) == "web_search":
+            query = (getattr(block, "input", {}) or {}).get("query")
+            if query:
+                search_queries.append(query)
+
+    raw = "".join(text_parts).strip()
+    if use_web_search:
+        logger.info(
+            f"Speech for order {order.id} used web_search: {len(search_queries)} queries — {search_queries}"
+        )
+    return raw, raw, search_queries
 
 
 def _speech_placeholder(order, duration: int) -> str:
