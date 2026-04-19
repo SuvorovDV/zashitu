@@ -1,12 +1,14 @@
 import { useWizardStore } from '../../../store/index.js'
 
+// Активные типы — отдельные системные промты в backend/generation/prompts/.
+// Coming-soon — заморожены в UI, fallback на academic-промт в backend.
 const WORK_TYPES = [
-  'ВКР',
-  'Курсовая',
-  'Школьный реферат',
-  'Семинар',
-  'Обычный доклад',
-  'Личный проект',
+  { id: 'Школьный реферат', active: true },
+  { id: 'Обычный доклад',   active: true },
+  { id: 'ВКР',              active: false },
+  { id: 'Курсовая',         active: false },
+  { id: 'Семинар',          active: false },
+  { id: 'Личный проект',    active: false },
 ]
 
 export default function Step3WorkType() {
@@ -14,26 +16,46 @@ export default function Step3WorkType() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-xl font-semibold text-white mb-1">Тип работы</h2>
-        <p className="text-[#D2CFC1] text-sm">Определяет тональность текста и наличие иллюстраций</p>
+        <h2 className="text-xl font-semibold text-white mb-1">Тип презентации</h2>
+        <p className="text-[#D2CFC1] text-sm">Определяет структуру слайдов и тональность текста</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {WORK_TYPES.map((type) => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => setField('work_type', type)}
-            aria-pressed={work_type === type}
-            className={`px-4 py-3 rounded-xl border text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-              work_type === type
-                ? 'border-brand-500 bg-brand-500/15 text-brand-300'
-                : 'card text-[#D2CFC1] hover:border-[#4B4A42] hover:text-white'
-            }`}
-          >
-            {type}
-          </button>
-        ))}
+        {WORK_TYPES.map(({ id, active }) => {
+          const selected = work_type === id
+          if (!active) {
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Эта категория появится в одной из ближайших версий"
+                className="px-4 py-3 rounded-xl border text-sm font-medium card text-[#5A5A50] border-[#33332C] cursor-not-allowed opacity-60 flex items-center justify-between gap-2"
+              >
+                <span>{id}</span>
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#1A1A18] border border-[#33332C] text-[#8F8C7F]">
+                  скоро
+                </span>
+              </button>
+            )
+          }
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setField('work_type', id)}
+              aria-pressed={selected}
+              className={`px-4 py-3 rounded-xl border text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                selected
+                  ? 'border-brand-500 bg-brand-500/15 text-brand-300'
+                  : 'card text-[#D2CFC1] hover:border-[#4B4A42] hover:text-white'
+              }`}
+            >
+              {id}
+            </button>
+          )
+        })}
       </div>
 
       {/* Гейт по техническим деталям — актуально для личного проекта, но оставляем всегда. */}

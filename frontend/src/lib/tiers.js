@@ -9,14 +9,22 @@ export const TIER_LIMITS = {
   premium:  { label: 'Премиум',  max_slides: 30, max_duration_minutes: 45, price_rub: 399 },
 }
 
+// Школьный реферат: премиум недоступен (зеркалит backend/orders/service.py).
+// Opus + 30 слайдов + 45 мин — overkill для школы, базового/стандарта хватает.
+function tierAllowedForWorkType(tierId, work_type) {
+  if (tierId === 'premium' && (work_type || '').trim() === 'Школьный реферат') return false
+  return true
+}
+
 /**
  * Возвращает id минимального тарифа, который поддерживает заданный объём.
  * Если передать оба ограничения — берётся более строгое.
  */
-export function minTierFor({ slides_count, duration_minutes, detail_level }, tiers = TIER_LIMITS) {
+export function minTierFor({ slides_count, duration_minutes, detail_level, work_type }, tiers = TIER_LIMITS) {
   for (const id of TIER_ORDER) {
     const t = tiers[id]
     if (!t) continue
+    if (!tierAllowedForWorkType(id, work_type)) continue
     if (slides_count && slides_count > t.max_slides) continue
     if (duration_minutes && duration_minutes > t.max_duration_minutes) continue
     // Подробный уровень детализации — только для Премиума.
@@ -29,9 +37,10 @@ export function minTierFor({ slides_count, duration_minutes, detail_level }, tie
 /**
  * Вернёт true, если тариф tierId справится с указанным объёмом.
  */
-export function tierFits(tierId, { slides_count, duration_minutes, detail_level }, tiers = TIER_LIMITS) {
+export function tierFits(tierId, { slides_count, duration_minutes, detail_level, work_type }, tiers = TIER_LIMITS) {
   const t = tiers[tierId]
   if (!t) return false
+  if (!tierAllowedForWorkType(tierId, work_type)) return false
   if (slides_count && slides_count > t.max_slides) return false
   if (duration_minutes && duration_minutes > t.max_duration_minutes) return false
   if (detail_level === 'detailed' && tierId !== 'premium') return false

@@ -99,7 +99,7 @@ export default function Payment() {
   const cancelled = params.get('cancelled') === '1'
   const isDev = useDevMode()
 
-  const { tier, include_speech, slides_count, duration_minutes, mode, custom_elements, topic, setField } = useWizardStore()
+  const { tier, include_speech, slides_count, duration_minutes, mode, custom_elements, topic, work_type, setField } = useWizardStore()
   const [selectedTier, setSelectedTier] = useState(tier || 'basic')
   const [loading, setLoading] = useState(false)
   const [devLoading, setDevLoading] = useState(false)
@@ -119,10 +119,10 @@ export default function Payment() {
 
   useEffect(() => {
     if (!tiers) return
-    if (!tierFits(selectedTier, { slides_count, duration_minutes }, tiers)) {
-      setSelectedTier(minTierFor({ slides_count, duration_minutes }, tiers))
+    if (!tierFits(selectedTier, { slides_count, duration_minutes, work_type }, tiers)) {
+      setSelectedTier(minTierFor({ slides_count, duration_minutes, work_type }, tiers))
     }
-  }, [tiers, slides_count, duration_minutes])
+  }, [tiers, slides_count, duration_minutes, work_type])
 
   async function handlePay() {
     if (!validOrder) return
@@ -177,9 +177,11 @@ export default function Payment() {
 
   const selected = tiers?.[selectedTier]
   const currentOrder = tiers?.[selectedTier]?.order ?? 0
+  // Школьный реферат: премиум скрыт (синхронно с tierFits и backend-валидатором).
   const higher = tiers
     ? Object.values(tiers)
         .filter((t) => (t.order ?? 0) > currentOrder)
+        .filter((t) => tierFits(t.id, { slides_count, duration_minutes, work_type }, tiers))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     : []
 

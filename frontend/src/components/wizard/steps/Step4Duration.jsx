@@ -6,7 +6,7 @@ const MAX_SLIDES = Math.max(...Object.values(TIER_LIMITS).map((t) => t.max_slide
 const MAX_DURATION = Math.max(...Object.values(TIER_LIMITS).map((t) => t.max_duration_minutes))
 
 export default function Step4Duration() {
-  const { duration_minutes, slides_count, detail_level, setField } = useWizardStore()
+  const { duration_minutes, slides_count, detail_level, work_type, setField } = useWizardStore()
 
   const mode = slides_count ? 'slides' : 'duration'
   const durationValue = duration_minutes || 15
@@ -17,6 +17,7 @@ export default function Step4Duration() {
     slides_count: mode === 'slides' ? slidesValue : null,
     duration_minutes: mode === 'duration' ? durationValue : null,
     detail_level,
+    work_type,
   })
   const tierInfo = TIER_LIMITS[requiredTier]
 

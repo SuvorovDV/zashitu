@@ -101,7 +101,7 @@ export default function Wizard() {
   const toast = useToast()
   const store = useWizardStore()
   const { currentStep, nextStep, prevStep, goToStep, getFormData, setOrderId, orderId,
-          slides_count, duration_minutes, detail_level, tier, setField } = store
+          slides_count, duration_minutes, detail_level, tier, work_type, setField } = store
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -112,6 +112,7 @@ export default function Wizard() {
     slides_count,
     duration_minutes: slides_count ? null : duration_minutes,
     detail_level,
+    work_type,
   })
   useEffect(() => {
     if (tier !== requiredTier) setField('tier', requiredTier)
