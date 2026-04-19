@@ -35,7 +35,7 @@ function HeroDiagram() {
       </div>
 
       <div className="card" style={{ padding: 24, position: 'relative' }}>
-        <div className="mono tiny muted" style={{ marginBottom: 10 }}>preview · диплом_иванов.pdf → .pptx</div>
+        <div className="mono tiny muted" style={{ marginBottom: 10 }}>preview · ваша тема → .pptx</div>
         <svg viewBox="0 0 420 280" width="100%" height="auto">
           <g transform="translate(8,20)">
             <rect x="0" y="0" width="160" height="220" fill="var(--surface-2)" stroke="var(--rule-strong)" rx="6" />
@@ -73,26 +73,26 @@ function Hero({ ctaHref }) {
     <section id="top" style={{ paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative' }}>
         <div className="hide-mobile" style={{ position: 'absolute', top: -10, right: 40, transform: 'rotate(6deg)' }}>
-          <span className="sticker">★ из ВАШЕЙ работы — или ВАШЕЙ речи</span>
+          <span className="sticker">★ для школы и работы</span>
         </div>
 
         <div className="kicker" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ width: 6, height: 6, background: 'var(--accent)', borderRadius: '50%', display: 'inline-block' }} />
-          академический генератор презентаций · 2026
+          генератор презентаций · 2026
         </div>
 
         <h1
           className="serif"
           style={{ fontSize: 'clamp(52px, 7vw, 104px)', lineHeight: 0.98, margin: 0, letterSpacing: '-0.025em', textWrap: 'balance', maxWidth: 1100 }}
         >
-          Защитите диплом с<br />
-          презентацией, <span className="hl">которую не придумал ИИ</span>.
+          Презентация по теме —<br />
+          <span className="hl">за 1–2 минуты</span>.
         </h1>
 
         <div className="split-hero" style={{ marginTop: 36, gap: 60, alignItems: 'start' }}>
           <div>
             <p style={{ fontSize: 19, lineHeight: 1.55, color: 'var(--ink-2)', maxWidth: 640, textWrap: 'pretty', margin: 0 }}>
-              Загрузи PDF/DOCX работы <em>или</em> вставь готовый текст выступления — через 1–2 минуты получаешь <span style={{ color: 'var(--ink)', fontWeight: 500 }}>.pptx</span>, где каждый тезис со ссылкой на источник. Редактируется в PowerPoint, Keynote, Google Slides.
+              Школьный реферат или деловой доклад. Дай тему — соберём <span style={{ color: 'var(--ink)', fontWeight: 500 }}>.pptx</span> и текст выступления с фактами из проверенных источников. Опционально загрузишь свой материал — учтём его. Редактируется в PowerPoint, Keynote, Google Slides.
             </p>
 
             <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -101,9 +101,9 @@ function Hero({ ctaHref }) {
             </div>
 
             <div style={{ marginTop: 48, display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-              <Stat big="1–2 мин" small="от материала до .pptx" />
-              <Stat big={<>0 <span className="hand" style={{ color: 'var(--accent)', fontSize: 36 }}>придумано</span></>} small="по умолчанию — строго из вашего" />
-              <Stat big="10–30" small="слайдов со ссылками" />
+              <Stat big="1–2 мин" small="от темы до .pptx" />
+              <Stat big={<>факты с <span className="hand" style={{ color: 'var(--accent)', fontSize: 36 }}>источником</span></>} small="web-поиск + цитата (Автор, год)" />
+              <Stat big="8–30" small="слайдов под объём" />
             </div>
           </div>
 
@@ -278,7 +278,7 @@ function SlideSpecimen({ activeIdx, onHover }) {
     <div style={{ aspectRatio: '16 / 9', padding: '32px 36px 24px', display: 'flex', flexDirection: 'column', gap: 16, background: 'var(--ink)', color: 'var(--bg)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="mono tiny" style={{ color: 'rgba(14,14,12,0.55)' }}>07 / Выводы</div>
-        <div className="mono tiny" style={{ color: 'rgba(14,14,12,0.55)' }}>Иванов А.В. · ВКР 2026</div>
+        <div className="mono tiny" style={{ color: 'rgba(14,14,12,0.55)' }}>А. Романова · доклад 2026</div>
       </div>
       <div>
         <h3 className="serif" style={{ fontSize: 30, margin: '4px 0', letterSpacing: '-0.015em', lineHeight: 1.1, color: 'var(--bg)' }}>Выводы по главе 2</h3>
@@ -521,7 +521,7 @@ function Process() {
   return (
     <section id="process" style={{ paddingTop: 96, paddingBottom: 96, borderTop: '1px solid var(--rule)' }}>
       <div className="wrap">
-        <SectionHead num="03" kicker="Процесс" title={<>Три шага — от файла до <span className="hl">готовой защиты</span>.</>} />
+        <SectionHead num="03" kicker="Процесс" title={<>Три шага — от темы до <span className="hl">готовой презентации</span>.</>} />
 
         <div className="cols-3" style={{ marginTop: 48, gap: 16 }}>
           {PROCESS_STEPS.map((s, i) => (
@@ -559,15 +559,15 @@ function Process() {
 
 const FEATURES = [
   { k: '01', t: 'Ваш материал — ваш дек', d: 'Работа (PDF/DOCX) или готовая речь. По умолчанию строго из неё, без чужих фактов.' },
-  { k: '02', t: 'Ссылка на каждую строку', d: 'Каждый тезис помечен «с. N» — научрук проверит за 10 секунд. При enhance — пометка «общее знание».' },
+  { k: '02', t: 'Ссылка на каждую строку', d: 'Каждый тезис помечен источником — страницей PDF или цитатой (Автор, год) из web-поиска. Учителю/слушателю проверить — 10 секунд.' },
   { k: '03', t: 'Редактируемый .pptx',  d: 'Не картинки, а настоящие слайды. Меняйте шрифты, цвета, порядок — всё останется.' },
   { k: '04', t: '1–2 минуты',           d: 'От материала до готовой презентации. Без очередей и ожиданий.' },
 ]
 
 const TESTIMONIALS = [
-  { name: 'Аня, ВКР · НИУ ВШЭ',        text: 'Научрук первым делом полезла в с. 47 — и там всё совпало. Защитилась на 5, претензий по цифрам ноль.', rotate: -1 },
-  { name: 'Денис, курсовая · МГУ',     text: 'Перегонял 120-страничный диплом друга в презу для него — за 2 минуты. Он потом сам не поверил.',       rotate: 0.5 },
-  { name: 'Марина, школа · 11 класс',  text: 'Проект по биологии. Учителя всегда спрашивают «откуда?» — теперь ссылка на странице прямо на слайде. Спорить не с чем.', rotate: -0.8 },
+  { name: 'Марина · 11 класс',           text: 'Реферат по биологии. Учителя всегда спрашивают «откуда?» — теперь ссылка на источник прямо на слайде. Спорить не с чем.', rotate: -0.8 },
+  { name: 'Денис · отдел маркетинга',    text: 'Доклад на квартальном — собрал за 5 минут пока ехал на работу. Цифры с источниками, графики на месте, переделок не понадобилось.', rotate: 0.5 },
+  { name: 'Алина · 9 класс',             text: 'Делала презу про космос. Все цифры с указанием NASA или Роскосмоса — учительница спросила, сама ли искала. Сама не верила, что так быстро.', rotate: -1 },
 ]
 
 function Quote({ name, text, rotate }) {
@@ -604,7 +604,7 @@ function Features() {
         </div>
 
         <div style={{ marginTop: 56 }}>
-          <div className="kicker" style={{ marginBottom: 20 }}>— что говорят студенты</div>
+          <div className="kicker" style={{ marginBottom: 20 }}>— что говорят пользователи</div>
           <div className="cols-3" style={{ gap: 16 }}>
             {TESTIMONIALS.map((q) => <Quote key={q.name} {...q} />)}
           </div>
@@ -617,9 +617,9 @@ function Features() {
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 
 const TIER_META = {
-  basic:    { note: 'Для реферата и короткого доклада' },
-  standard: { note: 'Оптимально для курсовой и диплома', popular: true },
-  premium:  { note: 'Для ВКР, магистерской, конференции' },
+  basic:    { note: 'Для школьного реферата и короткого доклада' },
+  standard: { note: 'Оптимально для подробного доклада', popular: true },
+  premium:  { note: 'Для длинного делового доклада или конференции' },
 }
 
 function Li({ children }) {
@@ -725,7 +725,7 @@ function CtaStrip({ user }) {
           <div>
             <div className="kicker" style={{ marginBottom: 10 }}>— начать сейчас</div>
             <div className="serif" style={{ fontSize: 'clamp(32px, 3.5vw, 44px)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              {user ? <>С возвращением. <span className="hl">К делу.</span></> : <>Готовы защищаться <span className="hl">уверенно</span>?</>}
+              {user ? <>С возвращением. <span className="hl">К делу.</span></> : <>Готовы собрать <span className="hl">первую презентацию</span>?</>}
             </div>
             <p style={{ marginTop: 12, color: 'var(--ink-2)', fontSize: 16, maxWidth: 560 }}>
               {user
@@ -778,7 +778,7 @@ function Footer() {
               <div className="serif" style={{ fontSize: 24 }}>Tezis</div>
             </div>
             <p style={{ marginTop: 14, fontSize: 14, color: 'var(--ink-3)', maxWidth: 340, lineHeight: 1.55 }}>
-              Академический генератор презентаций. Каждый тезис — со ссылкой на страницу источника.
+              Генератор презентаций по теме — для школы и работы. Каждый тезис со ссылкой на источник.
             </p>
             <div className="mono tiny muted" style={{ marginTop: 20 }}>
               © 2026 ООО «Тезис»
