@@ -1,16 +1,28 @@
+import { useEffect } from 'react'
 import { useWizardStore } from '../../../store/index.js'
-import { TIER_LIMITS, minTierFor } from '../../../lib/tiers.js'
-
-// Общий верхний предел — максимум из всех тарифов (премиум).
-const MAX_SLIDES = Math.max(...Object.values(TIER_LIMITS).map((t) => t.max_slides))
-const MAX_DURATION = Math.max(...Object.values(TIER_LIMITS).map((t) => t.max_duration_minutes))
+import { TIER_LIMITS, TIER_ORDER, minTierFor, tierFits } from '../../../lib/tiers.js'
 
 export default function Step4Duration() {
   const { duration_minutes, slides_count, detail_level, work_type, setField } = useWizardStore()
 
+  // Динамический верхний предел: только тарифы, разрешённые для текущего work_type.
+  // Школьный реферат → premium недоступен → максимум считается по Стандарту.
+  const allowedTierIds = TIER_ORDER.filter((id) => tierFits(id, { work_type }))
+  const allowedTiers = allowedTierIds.map((id) => TIER_LIMITS[id])
+  const MAX_SLIDES = Math.max(...allowedTiers.map((t) => t.max_slides))
+  const MAX_DURATION = Math.max(...allowedTiers.map((t) => t.max_duration_minutes))
+
   const mode = slides_count ? 'slides' : 'duration'
   const durationValue = duration_minutes || 15
   const slidesValue = slides_count || 15
+
+  // Если значения остались с предыдущего work_type и больше нового максимума — подрезаем.
+  useEffect(() => {
+    if (slides_count && slides_count > MAX_SLIDES) setField('slides_count', MAX_SLIDES)
+    if (!slides_count && duration_minutes && duration_minutes > MAX_DURATION) {
+      setField('duration_minutes', MAX_DURATION)
+    }
+  }, [MAX_SLIDES, MAX_DURATION])
 
   // Тариф авто-синкается в Wizard.jsx; здесь просто показываем минимально подходящий.
   const requiredTier = minTierFor({
@@ -74,7 +86,7 @@ export default function Step4Duration() {
             className="w-full accent-brand-500 h-1.5 cursor-pointer"
             aria-label="Длительность выступления в минутах"
           />
-          <TierMarks type="duration" value={durationValue} />
+          <TierMarks type="duration" value={durationValue} allowedTierIds={allowedTierIds} />
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -92,7 +104,7 @@ export default function Step4Duration() {
             className="w-full accent-brand-500 h-1.5 cursor-pointer"
             aria-label="Количество слайдов"
           />
-          <TierMarks type="slides" value={slidesValue} />
+          <TierMarks type="slides" value={slidesValue} allowedTierIds={allowedTierIds} />
         </div>
       )}
 
@@ -110,18 +122,12 @@ export default function Step4Duration() {
   )
 }
 
-function TierMarks({ type, value }) {
+function TierMarks({ type, value, allowedTierIds }) {
   // Порог начала каждого тарифа — показываем на оси в виде засечек.
-  const marks = []
-  if (type === 'slides') {
-    marks.push({ at: TIER_LIMITS.basic.max_slides,    label: 'Базовый' })
-    marks.push({ at: TIER_LIMITS.standard.max_slides, label: 'Стандарт' })
-    marks.push({ at: TIER_LIMITS.premium.max_slides,  label: 'Премиум' })
-  } else {
-    marks.push({ at: TIER_LIMITS.basic.max_duration_minutes,    label: 'Базовый' })
-    marks.push({ at: TIER_LIMITS.standard.max_duration_minutes, label: 'Стандарт' })
-    marks.push({ at: TIER_LIMITS.premium.max_duration_minutes,  label: 'Премиум' })
-  }
+  // Скрываем тарифы, недоступные для текущего work_type (школа без premium).
+  const ids = allowedTierIds || ['basic', 'standard', 'premium']
+  const field = type === 'slides' ? 'max_slides' : 'max_duration_minutes'
+  const marks = ids.map((id) => ({ at: TIER_LIMITS[id][field], label: TIER_LIMITS[id].label }))
 
   return (
     <div className="flex justify-between text-[10px] uppercase tracking-wider font-semibold">

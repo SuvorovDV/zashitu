@@ -14,7 +14,8 @@ const wizardDefaults = {
   required_elements: [],
   custom_elements: '',
   mode: '',
-  palette: 'midnight_executive',
+  // 'auto' → backend дёргает Claude, чтобы подобрать палитру под тему. Иначе — id из Step10.
+  palette: 'auto',
   tier: 'basic',
   // Опциональный артефакт — Markdown-текст выступления вместе с .pptx.
   include_speech: false,
@@ -69,7 +70,7 @@ export const useWizardStore = create(
           required_elements: s.required_elements.length ? s.required_elements : undefined,
           custom_elements: s.custom_elements?.trim() || undefined,
           mode: s.mode || undefined,
-          palette: s.palette || 'midnight_executive',
+          palette: s.palette || 'auto',
           tier: s.tier,
           include_speech: includeSpeech,
           speech_is_user_provided: !!s.speech_is_user_provided,

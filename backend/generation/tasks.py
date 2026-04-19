@@ -297,10 +297,62 @@ generate_presentation_task = start_generation_task
 # ── pptxgenjs generator ──────────────────────────────────────────────────────
 
 
+def _pick_palette(order, tier_config) -> str:
+    """Просит Claude выбрать одну из палитр под тему/тип презентации.
+
+    Лёгкий one-shot вызов (sonnet, max_tokens 32). При любой ошибке/пустом
+    ответе → fallback на midnight_executive (нейтральная корпоративная).
+    """
+    from generation.prompts._shared import PALETTE_MOODS
+
+    palette_options = "\n".join(f"- {pid}: {mood}" for pid, mood in PALETTE_MOODS.items())
+    system_prompt = (
+        "Ты подбираешь цветовую палитру под тему презентации. "
+        "Возвращай ТОЛЬКО id одной палитры из списка, без кавычек, без пояснений.\n\n"
+        f"Доступные палитры:\n{palette_options}"
+    )
+    user_prompt = (
+        f"Тема: {order.topic}\n"
+        f"Тип презентации: {order.work_type or '—'}\n"
+        f"Тезис: {order.thesis or '—'}\n\n"
+        "Какая палитра подходит лучше всего? Верни только id."
+    )
+
+    if not settings.ANTHROPIC_API_KEY:
+        return "midnight_executive"
+
+    try:
+        client = _get_anthropic_client()
+        # Всегда sonnet для палитры — дёшево и быстро, opus тут оверкилл.
+        resp = client.messages.create(**_messages_kwargs(
+            model="claude-sonnet-4-6",
+            max_tokens=32,
+            temperature=0.3,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        ))
+        raw = (resp.content[0].text if resp.content else "").strip().lower()
+        # Чистим возможные ` или кавычки.
+        raw = raw.strip("`'\" \n").split()[0] if raw else ""
+        if raw in PALETTE_MOODS:
+            return raw
+        logger.warning(f"Palette picker returned unknown id '{raw}', falling back")
+    except Exception as e:
+        logger.warning(f"Palette picker failed ({e}), falling back to default")
+    return "midnight_executive"
+
+
 def _pptxgenjs_generator(order, file_path, tier_config):
     Path(settings.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     output_filename = f"{uuid.uuid4()}.pptx"
     output_path = (Path(settings.OUTPUT_DIR) / output_filename).resolve()
+
+    # Auto-pick палитру под тему, если юзер выбрал «Авто» в Step10.
+    # Резолвится один раз и подставляется в order для всех downstream-вызовов.
+    if (order.palette or "").strip().lower() == "auto":
+        picked = _pick_palette(order, tier_config)
+        order.palette = picked
+        logger.info(f"Order {order.id} palette auto-picked: {picked}")
 
     skeleton = _build_skeleton(order, tier_config)
 

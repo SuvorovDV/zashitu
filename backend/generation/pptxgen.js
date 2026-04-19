@@ -128,23 +128,26 @@ function generatePresentation(plan) {
 }
 
 // ── Заголовочная плашка, общая для большинства слайдов ───────────────────────
+// Editorial-стиль: лёгкий — только тайтл + тонкая accent-линия снизу.
+// Меньше «корпоративной плашки» во всю ширину, больше «журнальной» подачи.
 function headerBar(prs, slide, pal, title, counter) {
-  slide.addShape(prs.shapes.RECTANGLE, {
-    x: 0, y: 0, w: 10, h: 1.0,
-    fill: { color: pal.primary }, line: { color: pal.primary }
-  });
   slide.addText(title, t({
-    x: 0.4, y: 0, w: 8.6, h: 1.0,
-    fontFace: FONT_TITLE, fontSize: 24, bold: true,
-    color: pal.white, align: "left", valign: "middle", margin: 0,
+    x: 0.5, y: 0.35, w: 8.5, h: 0.7,
+    fontFace: FONT_TITLE, fontSize: 26, bold: true,
+    color: pal.primary, align: "left", valign: "middle", margin: 0,
   }));
   if (counter) {
     slide.addText(counter, t({
-      x: 8.5, y: 0, w: 1.1, h: 1.0,
+      x: 8.5, y: 0.35, w: 1.1, h: 0.7,
       fontFace: FONT_BODY, fontSize: 11,
       color: pal.accent, align: "right", valign: "middle", margin: 0,
     }));
   }
+  // Тонкая accent-линия под заголовком — визуально отделяет header от контента.
+  slide.addShape(prs.shapes.RECTANGLE, {
+    x: 0.5, y: 1.05, w: 0.4, h: 0.04,
+    fill: { color: pal.accent }, line: { color: pal.accent },
+  });
 }
 
 // ── Слайды ───────────────────────────────────────────────────────────────────
@@ -152,43 +155,66 @@ function headerBar(prs, slide, pal, title, counter) {
 function titleSlide(prs, plan, pal) {
   const slide = prs.addSlide();
   slide.background = { color: pal.primary };
+  // Большая accent-плашка справа — асимметричная композиция, журнальная.
+  slide.addShape(prs.shapes.RECTANGLE, {
+    x: 7.6, y: 0, w: 2.4, h: 5.625,
+    fill: { color: pal.accent }, line: { color: pal.accent }
+  });
+  // Узкая accent-полоса слева — рифма с правой плашкой.
   slide.addShape(prs.shapes.RECTANGLE, {
     x: 0, y: 0, w: 0.18, h: 5.625,
     fill: { color: pal.accent }, line: { color: pal.accent }
   });
-  slide.addText(plan.topic, t({
-    x: 0.5, y: 1.4, w: 9, h: 1.6,
-    fontFace: FONT_TITLE, fontSize: 36, bold: true,
-    color: pal.white, align: "left", valign: "middle", margin: 0, wrap: true,
+  // Кикер сверху — год / тип презентации.
+  const kicker = (plan.work_type || "Презентация").toUpperCase();
+  slide.addText(kicker, t({
+    x: 0.5, y: 0.5, w: 6, h: 0.4,
+    fontFace: FONT_BODY, fontSize: 11, bold: true,
+    color: pal.accent, align: "left", margin: 0, charSpacing: 4,
   }));
-  const subtitle = [plan.work_type, plan.university].filter(Boolean).join("  •  ");
-  if (subtitle) {
-    slide.addText(subtitle, t({
-      x: 0.5, y: 3.2, w: 9, h: 0.5,
+  // Главный заголовок — крупный, занимает большую часть слайда.
+  slide.addText(plan.topic, t({
+    x: 0.5, y: 1.4, w: 7, h: 2.8,
+    fontFace: FONT_TITLE, fontSize: 56, bold: true,
+    color: pal.white, align: "left", valign: "top", margin: 0, wrap: true,
+  }));
+  // Подпись внизу — университет / организация.
+  if (plan.university) {
+    slide.addText(plan.university, t({
+      x: 0.5, y: 4.3, w: 7, h: 0.4,
       fontFace: FONT_BODY, fontSize: 16, color: pal.accent, align: "left", margin: 0,
     }));
   }
-  slide.addText(`${plan.tier_label}  •  ${plan.total_slides} \u0441\u043b\u0430\u0439\u0434\u043e\u0432`, t({
-    x: 0.5, y: 4.8, w: 9, h: 0.4,
-    fontFace: FONT_BODY, fontSize: 12, color: "C7C7C7", align: "left", margin: 0,
+  slide.addText(`${plan.tier_label}  \u00B7  ${plan.total_slides} \u0441\u043b\u0430\u0439\u0434\u043e\u0432`, t({
+    x: 0.5, y: 4.95, w: 7, h: 0.35,
+    fontFace: FONT_BODY, fontSize: 11,
+    color: "C7C7C7", align: "left", margin: 0, charSpacing: 2,
   }));
 }
 
-function sectionSlide({ prs, pal }, s) {
+function sectionSlide({ prs, pal, idx }, s) {
   const slide = prs.addSlide();
   slide.background = { color: pal.primary };
+  // Гигантский номер секции — как в editorial-журналах. Шрифт 200pt в углу.
+  const sectionNum = String(idx + 1).padStart(2, "0");
+  slide.addText(sectionNum, t({
+    x: 0.4, y: 0.3, w: 4, h: 3.2,
+    fontFace: FONT_TITLE, fontSize: 220, bold: true,
+    color: pal.accent, align: "left", valign: "top", margin: 0,
+  }));
+  // Тонкая accent-полоса над заголовком — визуальный якорь.
   slide.addShape(prs.shapes.RECTANGLE, {
-    x: 0.5, y: 2.5, w: 3.5, h: 0.06,
-    fill: { color: pal.accent }, line: { color: pal.accent }
+    x: 0.5, y: 3.4, w: 1.2, h: 0.05,
+    fill: { color: pal.accent }, line: { color: pal.accent },
   });
   slide.addText(s.title, t({
-    x: 0.5, y: 2.7, w: 9, h: 1.2,
-    fontFace: FONT_TITLE, fontSize: 32, bold: true,
-    color: pal.white, align: "left", margin: 0,
+    x: 0.5, y: 3.6, w: 9, h: 1.3,
+    fontFace: FONT_TITLE, fontSize: 56, bold: true,
+    color: pal.white, align: "left", valign: "top", margin: 0, wrap: true,
   }));
   if (s.subtitle) {
     slide.addText(s.subtitle, t({
-      x: 0.5, y: 3.9, w: 8, h: 0.6,
+      x: 0.5, y: 4.95, w: 9, h: 0.5,
       fontFace: FONT_BODY, fontSize: 16, color: "D1D5DB", align: "left", margin: 0,
     }));
   }
@@ -197,24 +223,27 @@ function sectionSlide({ prs, pal }, s) {
 function calloutSlide({ prs, pal }, s) {
   const slide = prs.addSlide();
   slide.background = { color: pal.light };
-  slide.addShape(prs.shapes.RECTANGLE, {
-    x: 0.5, y: 0.35, w: 0.06, h: 0.7,
-    fill: { color: pal.primary }, line: { color: pal.primary }
-  });
-  slide.addText(s.title, t({
-    x: 0.7, y: 0.3, w: 8.8, h: 0.8,
-    fontFace: FONT_TITLE, fontSize: 22, bold: true,
-    color: pal.text, align: "left", margin: 0,
+  // Кикер-тайтл сверху — мелкий моно, всё внимание уходит на главный тезис.
+  slide.addText((s.title || "").toUpperCase(), t({
+    x: 0.5, y: 0.5, w: 9, h: 0.35,
+    fontFace: FONT_BODY, fontSize: 11, bold: true,
+    color: pal.primary, align: "left", margin: 0, charSpacing: 4,
   }));
+  // Главный тезис — крупный, не курсив (журнальная подача).
   slide.addText(s.callout || "", t({
-    x: 0.5, y: 1.2, w: 9, h: 1.8,
-    fontFace: FONT_TITLE, fontSize: 28, bold: true, italic: true,
-    color: pal.primary, align: "center", valign: "middle", margin: 0, wrap: true,
+    x: 0.5, y: 1.05, w: 9, h: 2.4,
+    fontFace: FONT_TITLE, fontSize: 40, bold: true,
+    color: pal.primary, align: "left", valign: "top", margin: 0, wrap: true,
   }));
   if (s.bullets && s.bullets.length) {
+    // Тонкая accent-линия отделяет тезис от поддерживающих буллетов.
+    slide.addShape(prs.shapes.RECTANGLE, {
+      x: 0.5, y: 3.55, w: 0.5, h: 0.04,
+      fill: { color: pal.accent }, line: { color: pal.accent },
+    });
     slide.addText(bulletItems(s.bullets), t(Object.assign({
-      x: 0.5, y: 3.15, w: 9, h: 1.85,
-      fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
+      x: 0.5, y: 3.75, w: 9, h: 1.25,
+      fontFace: FONT_BODY, fontSize: 15, color: pal.text, align: "left",
     }, BULLET_SPACING)));
   }
   cornerDecor(slide, s, { x: 8.1, y: 3.7, w: 1.5, h: 1.3 });
@@ -253,21 +282,22 @@ function twoColSlide({ prs, pal }, s) {
 function quoteSlide({ prs, pal }, s) {
   const slide = prs.addSlide();
   slide.background = { color: pal.light };
-  // Большие кавычки слева.
+  // Огромные кавычки слева — характерный визуальный якорь quote-слайда.
   slide.addText("\u201C", t({
-    x: 0.4, y: 0.8, w: 2, h: 2,
-    fontFace: FONT_TITLE, fontSize: 160, bold: true,
+    x: 0.3, y: 0.4, w: 2.5, h: 2.5,
+    fontFace: FONT_TITLE, fontSize: 240, bold: true,
     color: pal.accent, align: "left", valign: "top", margin: 0,
   }));
+  // Сама цитата — крупный serif, центр внимания.
   slide.addText(s.quote || s.title || "", t({
-    x: 1.2, y: 1.5, w: 7.6, h: 2.2,
-    fontFace: FONT_TITLE, fontSize: 26, italic: true,
+    x: 1.4, y: 1.6, w: 7.8, h: 2.6,
+    fontFace: FONT_TITLE, fontSize: 36, italic: true,
     color: pal.primary, align: "left", valign: "middle", margin: 0, wrap: true,
   }));
   if (s.attribution) {
     slide.addText("— " + s.attribution, t({
-      x: 1.2, y: 3.9, w: 7.6, h: 0.5,
-      fontFace: FONT_BODY, fontSize: 14,
+      x: 1.4, y: 4.4, w: 7.8, h: 0.5,
+      fontFace: FONT_BODY, fontSize: 15, bold: true,
       color: pal.text, align: "left", margin: 0,
     }));
   }
@@ -329,8 +359,9 @@ function statsSlide({ prs, pal }, s) {
     const padL = 0.28;
     const innerX = x + padL;
     const innerW = boxW - padL - 0.2;
-    const valueFontSize = useGrid22 ? 36 : 42;
-    const valueH = boxH * 0.52;
+    // Цифра — главный визуальный якорь stats. Крупный 60-72pt.
+    const valueFontSize = useGrid22 ? 56 : 72;
+    const valueH = boxH * 0.62;
 
     slide.addText(st.value || "", t({
       x: innerX, y: y + 0.15, w: innerW, h: valueH,
@@ -339,7 +370,7 @@ function statsSlide({ prs, pal }, s) {
     }));
     slide.addText(st.label || "", t({
       x: innerX, y: y + 0.15 + valueH + 0.02, w: innerW, h: boxH - 0.2 - valueH,
-      fontFace: FONT_BODY, fontSize: 13,
+      fontFace: FONT_BODY, fontSize: 14,
       color: pal.text, align: "left", valign: "top", margin: 0, wrap: true,
     }));
   });
@@ -567,17 +598,22 @@ function chartSlide({ prs, pal }, s) {
 function finalSlide(prs, plan, pal) {
   const slide = prs.addSlide();
   slide.background = { color: pal.primary };
+  // Зеркалит titleSlide — accent-плашка справа, тонкая полоса слева.
+  slide.addShape(prs.shapes.RECTANGLE, {
+    x: 7.6, y: 0, w: 2.4, h: 5.625,
+    fill: { color: pal.accent }, line: { color: pal.accent }
+  });
   slide.addShape(prs.shapes.RECTANGLE, {
     x: 0, y: 0, w: 0.18, h: 5.625,
     fill: { color: pal.accent }, line: { color: pal.accent }
   });
   slide.addText("\u0421\u043f\u0430\u0441\u0438\u0431\u043e \u0437\u0430 \u0432\u043d\u0438\u043c\u0430\u043d\u0438\u0435", t({
-    x: 0.5, y: 1.8, w: 9, h: 1.0,
-    fontFace: FONT_TITLE, fontSize: 36, bold: true,
-    color: pal.white, align: "left", margin: 0,
+    x: 0.5, y: 1.6, w: 7, h: 1.6,
+    fontFace: FONT_TITLE, fontSize: 56, bold: true,
+    color: pal.white, align: "left", margin: 0, wrap: true,
   }));
   slide.addText(plan.topic, t({
-    x: 0.5, y: 3.0, w: 9, h: 0.6,
-    fontFace: FONT_BODY, fontSize: 16, color: "C7C7C7", align: "left", margin: 0,
+    x: 0.5, y: 3.4, w: 7, h: 0.7,
+    fontFace: FONT_BODY, fontSize: 18, color: "D1D5DB", align: "left", margin: 0, wrap: true,
   }));
 }

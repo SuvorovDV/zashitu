@@ -1,5 +1,8 @@
 import { useWizardStore } from '../../../store/index.js'
 
+// 'auto' — спец-значение: backend сам выберет палитру под тему через Claude.
+const AUTO_OPTION = { value: 'auto', label: 'Авто — подберём под тему', isAuto: true }
+
 const PALETTES = [
   { value: 'midnight_executive', label: 'Midnight Executive', primary: '#1E2761', accent: '#CADCFC', light: '#EEF3FB', text: '#1E2761' },
   { value: 'forest_moss',        label: 'Forest & Moss',      primary: '#2C5F2D', accent: '#97BC62', light: '#F5F5F5', text: '#1A3B1B' },
@@ -68,13 +71,46 @@ function SlidePreview({ pal, topic }) {
 
 export default function Step10Palette() {
   const { palette, topic, setField } = useWizardStore()
+  const autoSelected = palette === 'auto'
 
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="text-xl font-semibold text-white mb-1">Цветовая палитра</h2>
-        <p className="text-gray-500 text-sm">Выберите стиль оформления — превью показывает реальный дизайн</p>
+        <p className="text-gray-500 text-sm">Авто-режим — палитру подберёт ИИ под тему. Или выберите вручную.</p>
       </div>
+
+      {/* Авто-карточка — широкая, отдельным блоком сверху. */}
+      <button
+        onClick={() => setField('palette', AUTO_OPTION.value)}
+        className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+          autoSelected
+            ? 'border-brand-500 bg-brand-500/10'
+            : 'border-white/10 bg-white/4 hover:border-white/20'
+        }`}
+      >
+        {/* Мини-радуга 4 цветов как иконка «авто». */}
+        <div className="flex gap-1 flex-shrink-0">
+          {['#1E2761', '#F96167', '#2C5F2D', '#990011'].map((c) => (
+            <div key={c} className="w-3 h-8 rounded-sm" style={{ background: c }} />
+          ))}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className={`text-sm font-medium ${autoSelected ? 'text-brand-300' : 'text-white'}`}>
+            {AUTO_OPTION.label}
+          </div>
+          <div className="text-xs text-gray-400 mt-0.5">
+            ИИ выберет палитру под вашу тему перед генерацией
+          </div>
+        </div>
+        {autoSelected && (
+          <svg className="w-4 h-4 text-brand-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        )}
+      </button>
+
+      <div className="text-xs text-gray-500 -mb-1">или выберите вручную:</div>
 
       <div className="grid grid-cols-2 gap-3">
         {PALETTES.map((pal) => {
