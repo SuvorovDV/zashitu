@@ -776,39 +776,14 @@ def _derive_skeleton_from_speech(order, n_slides: int, tier_config: dict) -> lis
     if not speech_text:
         return []
 
+    from generation.prompts import get_prompt_module
+    pm = get_prompt_module(order.work_type)
     allow_images = (order.work_type or "").strip() not in ("ВКР",)
-    detail = order.detail_level or "standard"
-    work_type = order.work_type or "—"
 
-    system_prompt = f"""Ты проектировщик структуры академической презентации.
-Вход: утверждённый ТЕКСТ ВЫСТУПЛЕНИЯ в markdown.
-Задача: предложить skeleton презентации из РОВНО {n_slides} слайдов,
-чьи заголовки ТОЧНО соответствуют логическим шагам речи в том же порядке.
-
-Доступные layouts (крупные image-слайды не используй):
-- default — 3–6 bullets
-- callout — акцентная фраза + поддерживающие bullets
-- two_col — две колонки сравнения
-- section — разделитель блоков (заголовок большой главы)
-- quote — цитата
-- stats — 3–4 больших числа с подписями
-- table — табличные данные (если в речи есть markdown-таблица)
-- chart — график (если в речи есть числовой ряд по годам или категориям)
-
-Жёсткие правила:
-1. Первый слайд — введение, default или callout.
-2. Последний слайд — выводы, default/callout/quote (НЕ section, НЕ stats).
-3. Если в речи есть # заголовок первого уровня — он становится section-слайдом.
-4. Каждая markdown-таблица в речи → один слайд с layout=table.
-5. Каждый числовой ряд по времени/категориям → layout=chart.
-6. Выразительные цитаты в кавычках → layout=quote (не обязательно, но желательно 1 на колоду).
-7. Плотность: detail={detail} — при brief можно длиннее каждый слайд, при detailed — дробнее.
-8. Тип работы: {work_type} — не используй слова «ВКР/диплом», если это не ВКР.
-9. Названия слайдов — короткие (≤60 символов), без номеров, отражают содержимое конкретного фрагмента речи.
-10. НЕ выдумывай темы, которых нет в речи. Если речь короткая — сгруппируй иначе, но {n_slides} ровно.
-
-Верни ТОЛЬКО JSON-массив ровно из {n_slides} объектов вида
-{{"name": "...", "layout": "..."}} — без markdown-обёрток, без объяснений."""
+    # Type-aware skeleton: каждый промт-модуль (school_essay/presentation/academic)
+    # подставляет свой структурный канон. Школьник не получит «Литературу/Цели»,
+    # доклад не получит «Что такое X».
+    system_prompt = pm.build_skeleton_system_prompt(order, n_slides, allow_images)
 
     user_prompt = (
         f"ТЕКСТ ВЫСТУПЛЕНИЯ:\n```markdown\n{speech_text[:40000]}\n```\n\n"
@@ -869,13 +844,18 @@ def _build_skeleton(order, tier_config) -> list:
     duration = getattr(order, "duration_minutes", None)
     tier_max = tier_config.get("max_slides", tier_config.get("slides", 12))
 
+    # Юзер видит «N слайдов» в wizard и ожидает их в .pptx. pptxgen.js всегда
+    # добавляет titleSlide + finalSlide → 2 авто-слайда. Поэтому контентных = N - 2,
+    # чтобы общее в файле совпадало с тем, что юзер выбрал.
+    AUTO_SLIDES = 2  # title + final
+
     if user_count and isinstance(user_count, int) and user_count > 0:
-        n_slides = max(6, min(40, user_count))
+        n_slides = max(6, min(40, user_count) - AUTO_SLIDES)
     elif duration and isinstance(duration, int) and duration > 0:
-        # 1.1 sl/min: 10 мин → 11 слайдов, 15 → 17, 25 → 28 (отсекается tier_max).
-        n_slides = max(6, min(tier_max, round(duration * 1.1)))
+        # 1.1 sl/min: 10 мин → 11 → 9 контентных + title + final = 11 в .pptx.
+        n_slides = max(6, min(tier_max, round(duration * 1.1)) - AUTO_SLIDES)
     else:
-        n_slides = tier_config.get("slides", 12)
+        n_slides = max(6, tier_config.get("slides", 12) - AUTO_SLIDES)
 
     # Если пользователь уже утвердил текст речи — скелет выводим ИЗ РЕЧИ,
     # а не из дефолтного академического пула. Это даёт:

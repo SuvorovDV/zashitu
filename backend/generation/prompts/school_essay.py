@@ -110,6 +110,16 @@ def build_slides_system_prompt(
     )
 
 
+def build_skeleton_system_prompt(order, n_slides: int, allow_images: bool) -> str:
+    return _shared.compose_skeleton_system_prompt(
+        persona_block=PERSONA_BLOCK,
+        structural_canon_block=STRUCTURAL_CANON_BLOCK,
+        n_slides=n_slides,
+        detail_level=getattr(order, "detail_level", "standard"),
+        allow_images=allow_images,
+    )
+
+
 def build_speech_system_prompt(order, duration: int, use_web_search: bool) -> str:
     """Спич-промт под школьника. Опирается на _shared.WEB_SEARCH_BLOCK_FOR_SPEECH в no-source режиме."""
     style_opener_default = "Привет! Сегодня я расскажу про…"
