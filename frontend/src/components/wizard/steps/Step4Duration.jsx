@@ -13,8 +13,11 @@ export default function Step4Duration() {
   const MAX_DURATION = Math.max(...allowedTiers.map((t) => t.max_duration_minutes))
 
   const mode = slides_count ? 'slides' : 'duration'
-  const durationValue = duration_minutes || 15
-  const slidesValue = slides_count || 15
+  // Защитный клемп на отрисовку: если persist вернул значение > нового максимума
+  // (юзер сменил work_type → MAX упал), показываем clamp до useEffect успеет
+  // переписать store. Без этого слайдер визуально вылезает за свой max.
+  const durationValue = Math.min(duration_minutes || 15, MAX_DURATION)
+  const slidesValue = Math.min(slides_count || 15, MAX_SLIDES)
 
   // Если значения остались с предыдущего work_type и больше нового максимума — подрезаем.
   useEffect(() => {

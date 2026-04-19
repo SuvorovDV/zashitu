@@ -145,8 +145,8 @@ function headerBar(prs, slide, pal, title, counter) {
   }
   // Тонкая accent-линия под заголовком — визуально отделяет header от контента.
   slide.addShape(prs.shapes.RECTANGLE, {
-    x: 0.5, y: 1.05, w: 0.4, h: 0.04,
-    fill: { color: pal.accent }, line: { color: pal.accent },
+    x: 0.5, y: 1.05, w: 0.4, h: 0.018,
+    fill: { color: pal.accent }, line: { color: pal.accent, width: 0 },
   });
 }
 
@@ -195,26 +195,27 @@ function titleSlide(prs, plan, pal) {
 function sectionSlide({ prs, pal, idx }, s) {
   const slide = prs.addSlide();
   slide.background = { color: pal.primary };
-  // Гигантский номер секции — как в editorial-журналах. Шрифт 200pt в углу.
+  // Большой номер секции — editorial. 160pt вместо 220, чтобы гарантированно
+  // не наезжать на заголовок ниже даже при нестандартных шрифтах.
   const sectionNum = String(idx + 1).padStart(2, "0");
   slide.addText(sectionNum, t({
-    x: 0.4, y: 0.3, w: 4, h: 3.2,
-    fontFace: FONT_TITLE, fontSize: 220, bold: true,
+    x: 0.4, y: 0.4, w: 4, h: 2.4,
+    fontFace: FONT_TITLE, fontSize: 160, bold: true,
     color: pal.accent, align: "left", valign: "top", margin: 0,
   }));
   // Тонкая accent-полоса над заголовком — визуальный якорь.
   slide.addShape(prs.shapes.RECTANGLE, {
-    x: 0.5, y: 3.4, w: 1.2, h: 0.05,
-    fill: { color: pal.accent }, line: { color: pal.accent },
+    x: 0.5, y: 3.3, w: 1.0, h: 0.025,
+    fill: { color: pal.accent }, line: { color: pal.accent, width: 0 },
   });
   slide.addText(s.title, t({
-    x: 0.5, y: 3.6, w: 9, h: 1.3,
-    fontFace: FONT_TITLE, fontSize: 56, bold: true,
+    x: 0.5, y: 3.5, w: 9, h: 1.3,
+    fontFace: FONT_TITLE, fontSize: 48, bold: true,
     color: pal.white, align: "left", valign: "top", margin: 0, wrap: true,
   }));
   if (s.subtitle) {
     slide.addText(s.subtitle, t({
-      x: 0.5, y: 4.95, w: 9, h: 0.5,
+      x: 0.5, y: 4.85, w: 9, h: 0.5,
       fontFace: FONT_BODY, fontSize: 16, color: "D1D5DB", align: "left", margin: 0,
     }));
   }
@@ -230,20 +231,21 @@ function calloutSlide({ prs, pal }, s) {
     color: pal.primary, align: "left", margin: 0, charSpacing: 4,
   }));
   // Главный тезис — крупный, не курсив (журнальная подача).
+  // 32pt вместо 40 — даёт запас на 4-5 строк длинного тезиса без оверфлоу.
   slide.addText(s.callout || "", t({
-    x: 0.5, y: 1.05, w: 9, h: 2.4,
-    fontFace: FONT_TITLE, fontSize: 40, bold: true,
+    x: 0.5, y: 1.05, w: 9, h: 2.7,
+    fontFace: FONT_TITLE, fontSize: 32, bold: true,
     color: pal.primary, align: "left", valign: "top", margin: 0, wrap: true,
   }));
   if (s.bullets && s.bullets.length) {
     // Тонкая accent-линия отделяет тезис от поддерживающих буллетов.
     slide.addShape(prs.shapes.RECTANGLE, {
-      x: 0.5, y: 3.55, w: 0.5, h: 0.04,
-      fill: { color: pal.accent }, line: { color: pal.accent },
+      x: 0.5, y: 3.85, w: 0.5, h: 0.02,
+      fill: { color: pal.accent }, line: { color: pal.accent, width: 0 },
     });
     slide.addText(bulletItems(s.bullets), t(Object.assign({
-      x: 0.5, y: 3.75, w: 9, h: 1.25,
-      fontFace: FONT_BODY, fontSize: 15, color: pal.text, align: "left",
+      x: 0.5, y: 4.0, w: 9, h: 1.0,
+      fontFace: FONT_BODY, fontSize: 14, color: pal.text, align: "left",
     }, BULLET_SPACING)));
   }
   cornerDecor(slide, s, { x: 8.1, y: 3.7, w: 1.5, h: 1.3 });
@@ -555,10 +557,18 @@ function chartSlide({ prs, pal }, s) {
   const chartY = s.intro ? 1.7 : 1.25;
   const chartH = 5.0 - chartY;
 
-  // 1 серия → один primary-цвет (не «радуга» из трёх оттенков на одну линию).
-  const isSingle = seriesIn.length === 1;
-  const extraColors = [pal.primary, pal.accent, "8b5cf6", "f59e0b", "10b981"];
-  const chartColors = isSingle ? [pal.primary] : extraColors.slice(0, seriesIn.length);
+  // Pie: каждый СЕГМЕНТ — свой цвет (палитра по labels.length).
+  // Bar/line с 1 серией → один primary-цвет (не «радуга» на одну линию).
+  // Bar/line с N серий → N цветов (по seriesIn.length).
+  const palettCycle = [pal.primary, pal.accent, "8b5cf6", "f59e0b", "10b981", "ef4444", "06b6d4"];
+  let chartColors;
+  if (typeKey === "pie") {
+    chartColors = palettCycle.slice(0, Math.max(labels.length, 1));
+  } else if (seriesIn.length === 1) {
+    chartColors = [pal.primary];
+  } else {
+    chartColors = palettCycle.slice(0, seriesIn.length);
+  }
 
   slide.addChart(chartType, chartData, {
     x: 0.5, y: chartY, w: 9.0, h: chartH,
