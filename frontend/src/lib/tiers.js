@@ -19,6 +19,10 @@ function tierAllowedForWorkType(tierId, work_type) {
 /**
  * Возвращает id минимального тарифа, который поддерживает заданный объём.
  * Если передать оба ограничения — берётся более строгое.
+ *
+ * Fallback: если ни один тариф не помещает объём (например школьный реферат
+ * с persisted slides_count=30), возвращаем последний РАЗРЕШЁННЫЙ для work_type
+ * — иначе UI отдал бы premium, который backend сразу бы отверг.
  */
 export function minTierFor({ slides_count, duration_minutes, detail_level, work_type }, tiers = TIER_LIMITS) {
   for (const id of TIER_ORDER) {
@@ -31,7 +35,8 @@ export function minTierFor({ slides_count, duration_minutes, detail_level, work_
     if (detail_level === 'detailed' && id !== 'premium') continue
     return id
   }
-  return TIER_ORDER[TIER_ORDER.length - 1]
+  const allowed = TIER_ORDER.filter((id) => tierAllowedForWorkType(id, work_type))
+  return allowed[allowed.length - 1] || TIER_ORDER[TIER_ORDER.length - 1]
 }
 
 /**
