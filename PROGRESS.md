@@ -6,12 +6,7 @@
 
 ## Следующий шаг
 
-**1. Path A — визуал-полировщик (следующий спринт).** Не было сделано на этой итерации (Path C + B2 съели неделю). План из tech-lead агента:
-- Typography sweep: title 24pt → 32pt, eyebrow-mono 10pt uppercase, bullets -2pt
-- Новые layouts: `kpi_grid` (4 числа на border-top без карточек, Leva-style), `chart_callouts` (chart + 3 KPI под ним), `numbered_list`
-- Chart-аннотации: peak-маркер через `addShape(LINE)` + `addText` overlay после `addChart`
-- Тематичные палитры под content (coal+ember для индустриальных тем, paper-warm для гуманитарных)
-- Оценка: +15-20% к 6-мерной rubric. Неделя работы, ~$2-3 на бенчмарк.
+**1. Бот синхронизировать с pivot (школьный реферат + обычный доклад).** Frontend и backend переключены, но `bot/config.py → TIERS` и FSM ещё не знают про два активных типа и заблокированные ВКР/Курсовая/Семинар/Личный. Сейчас бот может создать заказ с устаревшим work_type — backend academic-fallback его примет, но pivot не выполнен в TG-канале.
 
 **2. Купить `get-tezis.ru` и перевести фронт на публичный домен.** Caddyfile готов (`9cdd0ad`):
 - REG.RU ~590 ₽/год → A-записи `@`+`www` → `176.12.79.36`
@@ -21,13 +16,18 @@
 
 **3. Подключить Stripe.** `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, выключить `DEV_MODE=True`. Кнопка «симулировать оплату» спрячется автоматически (завязана на `/health → dev_mode`).
 
-**4. Наблюдение за NER-валидатором в проде.** Ждём ~10-20 реальных заказов. Если стабильно 0-2 `hallucinated_entities` на дек — ввести порог 3+ → retry со strict prompt. Если >5 — тюнинг regex/стоплистов.
+**4. Наблюдение за качеством новых промтов.** Через 10-20 реальных заказов на проде смотреть `orders.generation_prompt` (содержит speech_text, hallucinated_entities, search_queries, picked_palette). Сигналы для тюнинга:
+- > 5 hallucinated_entities на дек → ужесточать NER threshold или включать retry со strict prompt
+- web_search возвращает <2 источников или странные → менять промт-инструкции в `_shared.WEB_SEARCH_BLOCK_FOR_SPEECH`
+- Auto-palette стабильно выбирает один-два варианта → диверсифицировать PALETTE_MOODS описания
 
-**5. Завести `contracts/shared.py`** — ID тарифов, ключи палитр, `work_type`. Импортировать в `bot/config.py` и `backend/config.py`. Сейчас поддерживается вручную — новый «Обычный доклад» в frontend есть (`34aa4e5`), в боте ещё нет.
+**5. Завести `contracts/shared.py`** — ID тарифов, ключи палитр, `work_type`. Импортировать в `bot/config.py` и `backend/config.py`. Сейчас поддерживается вручную; после pivot расхождение бот↔веб только увеличилось.
 
 **6. Расширенный eval-dataset** — 2-3 fixture разных доменов (гуманитарный/тех/короткий семинар) для устойчивости метрик при prompt-изменениях.
 
 **7. Назвать компанию для футера и GitHub-орга.** Футер — плейсхолдер. Имя — открытый вопрос.
+
+**8. Реальные изображения через бесплатные image API** (Pixabay/Pexels/Unsplash) для image_side слайдов — сейчас только декоративный SVG-значок в углу. Альтернатива OpenAI gpt-image-1 (есть `OPENAI_API_KEY` в config, но не подключён).
 
 Локально без оплаты (бот):
 ```bash
@@ -195,6 +195,7 @@ DEBUG_SKIP_PAYMENT=true
 
 | Дата | Что сделано |
 |---|---|
+| 2026-04-19 | **Pivot к двум типам + per-type промт-фреймворк + web_search + scaffold-speech + visual upgrade.** 10 коммитов (`8115159..dccd0c7`). (1) `8115159` — web_search_20250305 server-side tool в спич-генерации для no-PDF режима, ищет 2-3 авторитетных источника, цитирует (Автор, год). Env-flag `WEB_SEARCH_ENABLED`, `WEB_SEARCH_MAX_USES=3`. (2) `1be55f2` — пакет `backend/generation/prompts/` (school_essay, presentation, academic-fallback, _shared с composer'ами). Каждый тип имеет свой структурный канон, layout-приоритеты, few-shot. tasks.py упростился (~300 строк промта вынесены). (3) `194f332` — backend-валидатор: школьный реферат + premium → 400 (3 теста). (4) `8bfdade` — wizard freeze ВКР/Курсовая/Семинар/Личный проект как «Скоро»; minTierFor/tierFits принимают work_type; Payment hides premium-апгрейд для школы. (5) `b7023af` — landing pivot academic→school+work: hero «Презентация по теме за 1–2 минуты», testimonials школьник/маркетолог/9-классница, premium tier «для длинного делового доклада», sample-preview «А. Романова · доклад 2026». (6) `01b0090` — visual A+B+C: cover topic 56pt, section number 220pt editorial, callout 40pt bold, stats values 56-72pt, quote 36pt + кавычки 240pt; auto-pick palette через sonnet one-shot ($0.001/запрос); Step10 первая опция «Авто»; defensive slider clamp. (7) `a999777` — фикс багов с проды: pie chart цвет на сегмент (раньше все одинаковые), accent-line 0.04→0.018 (тоньше), section number 220→160pt + меньше высоты (не наезжает на title), callout 40→32pt. (8) `3eca2ac` — minTierFor fallback возвращает последний РАЗРЕШЁННЫЙ тариф (школа+30 слайдов больше не возвращает premium); Caddyfile no-cache для index.html (раньше браузер залипал на старом html). (9) `e81ad76` — type-aware skeleton: каждый prompt-модуль экспортирует `build_skeleton_system_prompt`, школа больше не получает «Литературу/Цели/Методологию»; slide count derivation: `n = user_choice - 2` (titleSlide + finalSlide добавляются → total в .pptx = выбранному). (10) `dccd0c7` — scaffold-speech даже при `include_speech=False`: generate_slides_task сам генерит речь как фактическую базу для слайдов, юзеру .md не отдаётся (download endpoint гейтит по include_speech). Гейты `_build_skeleton`/`build_speech_context_block` упрощены. **Тесты:** 72 backend + 46 frontend проходят. **Всё задеплоено** на VM (worker+backend+frontend+Caddy пересобраны). |
 | 2026-04-18 (вечер, 2-я сессия) | **NER-валидатор как backstop для галлюцинаций** (`de5adf7`+`2ce92b1`). `backend/generation/ner_validator.py` — regex-экстрактор 4 типов сущностей (топонимы -ск/-цк/-ов, аббревиатуры, числа-с-единицами, годы, ФИО) + стемминг под русскую морфологию + phrase/token/synonyms-match. Подключён в `_generate_with_claude` warn-only, результат в `orders.generation_prompt.hallucinated_entities`. Env-flag `NER_VALIDATE_ENABLED` (default True). На корпусе: Path C rich — 0 FP, sparse Opus — 0 FP, синтетика — 4/7 подложенных поймано. **Валидация B2** (`bench/fixtures/sparse_ai/`): Sonnet и Opus оба не используют маркер «общее знание» даже в enhance-режиме (`975de70`). Opus в разы аккуратнее Sonnet на тонких источниках — рекомендуется для академической честности. UX-копия Step 9 смягчена, DECISIONS.md фиксирует ограничение. Потрачено $2.40 из $31. |
 | 2026-04-18 (вечер) | **B2: user-provided speech + enhance mode** (`34aa4e5`..`55d9f7f`..`a49cb63`). (1) Фикс bug slide_count: `_build_skeleton` теперь считает `duration_minutes × 1.1` при пустом `slides_count` (раньше падал в tier default 30 — юзер просил 10 мин, получал 32 слайда). (2) «Обычный доклад» — в enum work_types + `_speech_style`. (3) Новые Order-поля: `speech_is_user_provided`, `user_speech_text` (40k cap), `allow_enhance` (+migration 0009). (4) `generate_speech_task` short-circuit: если юзер принёс речь — копирует, `speech_approved=True`, переход к слайдам без API-вызова. (5) System prompt: `enhance_rule` + `fact_integrity_mode` 2 режима (strict/enhance), citations блок добавил `«общее знание»` как валидный source_ref в enhance-режиме. (6) Wizard Step 9 переписан — 2 тогла (речь: нет/да + textarea; дополнение: строго/разрешаю). (7) Landing copy обновлена под новый флоу (hero «работа ИЛИ речь», modes/process/features). |
 | 2026-04-18 (день) | **Path C — контент-gap vs Leva закрыт на 60-70%** (`24718fd`). Benchmark-harness `bench/` + `scripts/bench_gen.py` + fixture `smb_digital`. System prompt полностью переписан под редакторский voice: NER pass, density floor, fact integrity, anti-patterns, layout decision tree, citations как core USP, 3 few-shot примера. `SlideContent.source_ref` в Pydantic. Fallback `«источник: загруженная работа»` расширен с `default` до всех content-layouts. `pptxgen.js sourceFooter()` на callout/two_col/stats/table/chart/image_side/default (content-area сжата 5.25→5.0). Benchmark: 6-dim rubric 17.5 → 20.5/30 (+17%), source_ref coverage 4/14 → 12/12, named entities ~10 → 18+, quote с личной позицией автора. Агент-команда (3×: visual critic / content critic / tech lead) + 4 prompt-engineer агентов предоставили план. |

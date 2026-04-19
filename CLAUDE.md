@@ -6,28 +6,55 @@
 
 ## Что это за проект
 
-**ZaShitu** — платформа для генерации академических презентаций (.pptx) по загруженной работе студента. Два канала, один бэкенд:
+**Tezis** (legacy название ZaShitu) — платформа для генерации презентаций (.pptx) по теме. Два канала, один бэкенд:
 
 - **Telegram-бот** (`@ai_presentations_test_bot`) — FSM-диалог 10 шагов → Stars → .pptx
 - **Веб-приложение** (React SPA) — регистрация → форма → Stripe → .pptx
 
 Оба канала ходят в общий FastAPI-бэкенд. Тонкий клиент — в `bot/`, толстый — в `frontend/`, сам бэкенд — в `backend/`.
 
-**Главное отличие от Gamma:** генерация **по работе студента** (`source_grounded`), каждый тезис с ссылкой на страницу. Никаких галлюцинаций.
+**Pivot 2026-04-19:** проект переключился с «академической защиты по работе студента» на **школьный реферат + обычный доклад** (см. DECISIONS.md «Pivot к двум типам»). Активные типы в wizard: «Школьный реферат», «Обычный доклад». **ВКР, Курсовая, Семинар, Личный проект — заморожены** в UI как «Скоро» (academic-fallback в backend сохранён для legacy-заказов). Source-grounded режим (PDF) теперь **опциональная фича**, а не USP. Главный механизм фактической базы — **web_search через Anthropic SDK** (опирается на Росстат / Минобрнауки / NASA / профильные источники).
 
-**Pipeline слайдов (итерирован 2026-04-17 → 2026-04-18):**
-1. **Scenario A (user has speech text):** если юзер в wizard Step 9 отметил «да, вставлю свою» — `user_speech_text` копируется в `speech_text`, `speech_approved=True` авто-выставляется, Claude-генерация речи пропускается. Сразу идём к skeleton+slides.
-2. **Scenario B (generate speech):** если `include_speech` и речь не предоставлена — `_generate_speech` вызывает Claude, юзер ревьюит/аппрувит.
-3. После аппрува речи (обоих сценариев) → `_derive_skeleton_from_speech` просит Claude предложить titles+layouts **под реальные секции речи** (не фиксированный пул).
-4. `_generate_with_claude` заполняет контент. **System prompt переработан (2026-04-18, коммит `24718fd`):** named entities pass (ФИО/города/компании/проценты), density floor (число или сущность на каждом слайде), fact integrity (ни одного числа вне источника в strict-режиме), layout decision tree (≥3 числа → stats, временной ряд → chart, ≥3 строк → table). 3 few-shot примера плотных слайдов в промте. `allow_enhance=True` (юзер разрешил) ослабляет fact-integrity — Claude может добавить общие знания, но маркер «общее знание» на практике использует редко (см. DECISIONS.md «Enhance-режим…»).
-5. **NER-валидатор** (`2ce92b1`) — regex-бэкстоп над content слайдов, грепает топонимы/аббревиатуры/числа/годы/ФИО, сверяет со стеммленным source через `_entity_present_in_source`. Warn-only, список `hallucinated_entities` пишется в `orders.generation_prompt` для наблюдаемости. Env-flag `NER_VALIDATE_ENABLED` (default True).
-6. `_generate_images_for_slides` — SVG-декор в углу через Claude, растеризация через `@resvg/resvg-js`.
-7. `pptxgen.js` собирает `.pptx` + footer `sourceFooter(prs, slide, s)` на ВСЕХ content-layouts (callout/two_col/stats/table/chart/image_side/default) — core USP «ссылка на источник». Content-area сжата с 5.25" до 5.0" чтобы зарезервировать место под footer.
-8. `/files/download-speech/{id}` отдаёт речь с маркерами `=== Слайд N: title ===` (sonnet-4-6, кэш в `outputs/`).
+**Pipeline (итерирован до 2026-04-19):**
 
-**Slide count derivation (`34aa4e5`):** `slides_count` явно → используется; иначе `duration_minutes × 1.1` с clamp к `tier.max_slides`. Раньше при выборе «по длительности» брался tier default (30 слайдов на premium) — юзер просил 10 мин, получал 32 слайда. Починено.
+1. **Промт-фреймворк per-type** (`backend/generation/prompts/`):
+   - `school_essay.py` — школьный реферат (Что/Почему/Как/Примеры/Выводы; простой тон; layouts callout/quote/section/stats; чарты редко)
+   - `presentation.py` — обычный доклад (Контекст/Идея/Доказательства/Кейсы/Вывод; деловой тон; stats/chart/table — сердце дека)
+   - `academic.py` — fallback для legacy типов (ВКР/Курсовая/Семинар/Личный)
+   - `_shared.py` — общие блоки (JSON-схема, layout decision tree, anti-patterns, density floor, source-ref, web_search-блок) + `compose_slides_system_prompt()`, `compose_skeleton_system_prompt()`. Базовые правила синхронны между типами; структура/тон/few-shot — индивидуальные.
+   - `__init__.py` — `get_prompt_module(work_type)` с фоллбэком на academic.
 
-**Фронтенд (редизайн 2026-04-18, orange 2026-04-18 вечер):** все страницы в эстетике **dark `#0E0E0C` + orange accent `#FF5C2A` + cream ink `#FFF8EE` + Instrument Serif + маскот «научрук»**. Изначально был lime `#C8FF3E` из handoff-bundle Claude Design, user заменил на orange после ревью. Wizard Step 9 переработан (`55d9f7f`): две оси выбора — «у меня есть речь / сгенерируйте» + «строго / разрешаю дополнить». Работу можно не загружать, можно вставить готовую речь, можно оба. Landing hero/process/modes/features переписаны под новые сценарии (`a49cb63`). Mobile-responsive сетка (`ca8e3a1`).
+2. **Speech generation** (`_generate_speech`):
+   - Если юзер вставил готовую речь (Step 9 «у меня есть») → копируется как-есть, `speech_approved=True` авто.
+   - Иначе → Claude через `school_essay.build_speech_system_prompt` (или `presentation`).
+   - **Если PDF не загружен** → подключается `web_search_20250305` server-side tool (`max_uses=3`, env-flag `WEB_SEARCH_ENABLED`). Claude ищет 2-3 авторитетных источника, цитирует `(Иванов, 2024)` в тексте речи. Гейт: web_search **только** при отсутствии PDF — если работа есть, она приоритетнее веба.
+
+3. **Scaffold speech** (даже если `include_speech=False`):
+   - Раньше при «только презентация» слайды собирались голыми из topic+thesis. Сейчас `generate_slides_task` в начале сам генерит scaffold-речь (через тот же `_generate_speech` + web_search). Юзеру `.md` НЕ отдаётся (download-speech endpoint гейтит по `include_speech`), но slides-генерация и skeleton получают фактическую базу.
+   - Гейты `_build_skeleton` и `build_speech_context_block` упрощены: проверяют только `speech_approved + speech_text`, без `include_speech`.
+
+4. **Type-aware skeleton** (`_derive_skeleton_from_speech`):
+   - Промт собирается через `pm.build_skeleton_system_prompt(order, n_slides, allow_images)`. Школа получает Что/Почему/Как; доклад — Контекст/Идея/Доказательства. Явный запрет на «слайды-заглушки типа Литература / Цели / Методология» (раньше захардкоженный «академический» промт пихал их везде).
+
+5. **Slide content** (`_generate_with_claude` → `_build_slides_prompts`):
+   - Дёргает `pm.build_slides_system_prompt`. Полный текст речи идёт как `РЕЧЬ`-блок со строгими правилами: каждый bullet — переформулировка фразы из речи, никаких новых фактов, markdown-таблицы → layout=table, числовые ряды → layout=chart.
+   - `allow_enhance=True` ослабляет fact-integrity — Claude может добавить общие знания с маркером source_ref=«общее знание» (на практике использует редко).
+
+6. **NER-валидатор** (`backend/generation/ner_validator.py`) — regex-бэкстоп над content слайдов, warn-only, `hallucinated_entities` пишутся в `orders.generation_prompt`. Env-flag `NER_VALIDATE_ENABLED`.
+
+7. **Auto-pick palette** (`_pick_palette`): если `order.palette == 'auto'` (default Step10) → sonnet one-shot выбирает палитру под тему. Fallback на `midnight_executive`. ~$0.001 на запрос.
+
+8. **PPTX rendering** (`pptxgen.js`): editorial-стиль с тонкими accent-линиями (1.3pt), крупная типографика (cover topic 56pt, section number 160pt, callout main 32pt bold, stats values 56-72pt, quote 36pt + кавычки 240pt). Footer `sourceFooter()` на всех content-layouts. Pie chart — цвет на сегмент (раньше все одинаковые).
+
+9. **Slide count = выбранному юзером:** pptxgen всегда добавляет titleSlide+finalSlide (=2 авто-слайда). Расчёт `n_slides = user_count - 2`, чтобы общее в файле совпадало с UI-слайдером.
+
+10. `/files/download-speech/{id}` отдаёт `.md` с маркерами `=== Слайд N: title ===` (только при `include_speech=True`).
+
+**Tier-validation:** Школьный реферат + premium = 400 (backend/orders/service.py + frontend/lib/tiers.js). Premium = opus-4-7, 30 слайдов, 45 мин — overkill для школы.
+
+**Фронтенд (редизайн 2026-04-18 + orange + pivot 2026-04-19):** dark `#0E0E0C` + orange accent `#FF5C2A` + cream ink `#FFF8EE` + Instrument Serif + маскот «научрук». Step3WorkType — две активные карточки + 4 disabled с бейджем «скоро». Step4Duration динамически зажимает MAX_SLIDES/MAX_DURATION под разрешённые для work_type тарифы (школа = max 20 слайдов / 25 мин). Step10Palette — первая опция «Авто — подберём под тему» (default `palette='auto'`). Landing переписан: hero «Презентация по теме за 1–2 минуты», testimonials школьник/маркетолог/9-классница, premium tier «Для длинного делового доклада или конференции».
+
+**Caddy:** `index.html` теперь с `Cache-Control: no-cache, must-revalidate` (раньше браузер залипал на старом html со ссылками на устаревшие хешированные бандлы).
 
 ---
 
