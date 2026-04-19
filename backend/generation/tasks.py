@@ -235,6 +235,29 @@ def generate_slides_task(self, order_id: str):
                 file_path = fp
 
         tier_config = TIERS.get(order.tier, TIERS["basic"])
+
+        # Scaffold-speech: если юзер НЕ заказывал отдельный текст выступления и
+        # речи у нас ещё нет — генерируем её внутри pipeline как фактическую базу
+        # для skeleton + слайдов. Без неё слайды собирались бы только из
+        # topic+thesis (тонко). Юзер scaffold-речь НЕ получает: download-speech
+        # endpoint гейтит по include_speech (см. files/router.py).
+        if not order.speech_text:
+            has_source = file_path is not None
+            scaffold_text, scaffold_record = _generate_speech(
+                order, tier_config, has_source=has_source,
+            )
+            order.speech_text = scaffold_text
+            order.speech_approved = True  # юзер её не ревьюит — auto-approve
+            order.speech_prompt = json.dumps(
+                {"scaffold": True, **scaffold_record},
+                ensure_ascii=False, indent=2,
+            )
+            db.commit()
+            logger.info(
+                f"Order {order_id} scaffold speech generated ({len(scaffold_text)} chars) "
+                f"for slides-only flow (web_search={scaffold_record.get('web_search_enabled')})"
+            )
+
         output_filename, generation_prompt = _pptxgenjs_generator(order, file_path, tier_config)
 
         # Рендерим pixel-perfect PNG-превью каждого слайда через LibreOffice.
@@ -857,15 +880,15 @@ def _build_skeleton(order, tier_config) -> list:
     else:
         n_slides = max(6, tier_config.get("slides", 12) - AUTO_SLIDES)
 
-    # Если пользователь уже утвердил текст речи — скелет выводим ИЗ РЕЧИ,
-    # а не из дефолтного академического пула. Это даёт:
+    # Если есть утверждённый текст речи (юзера или scaffold внутри slides_task) —
+    # скелет выводим ИЗ РЕЧИ, а не из дефолтного академического пула. Это даёт:
     # (1) Titles слайдов, которые реально соответствуют содержимому спича
-    #     → контент-проход не «натягивает» кузбасский анализ на «Цели и задачи»;
+    #     → контент-проход не «натягивает» абстракции на «Цели и задачи»;
     # (2) Маркировка речи при скачивании становится точной (каждый абзац
     #     находит свой заголовок слайда).
+    # include_speech намеренно НЕ проверяем — scaffold-речь генерится и при False.
     if (
-        getattr(order, "include_speech", False)
-        and getattr(order, "speech_approved", False)
+        getattr(order, "speech_approved", False)
         and getattr(order, "speech_text", None)
         and settings.ANTHROPIC_API_KEY
     ):

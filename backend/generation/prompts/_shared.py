@@ -179,10 +179,11 @@ def build_tech_gate(skip_tech_details: bool) -> str:
 # ── Speech-context block (тот же для всех типов; отличается только tone) ────
 
 def build_speech_context_block(order) -> str:
-    """Если речь утверждена — собираем её в источник для slide-генерации."""
+    """Если речь утверждена (от юзера или scaffold внутри slides_task) — собираем её
+    как источник для slide-генерации. include_speech НЕ проверяем: scaffold-речь
+    генерится и при False, чтобы быть фактической базой для слайдов."""
     if not (
-        getattr(order, "include_speech", False)
-        and getattr(order, "speech_approved", False)
+        getattr(order, "speech_approved", False)
         and getattr(order, "speech_text", None)
     ):
         return ""
